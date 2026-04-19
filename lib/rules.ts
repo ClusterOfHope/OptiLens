@@ -1,4 +1,4 @@
-import { DailyMetric, WasteFlag } from '@/types'
+import { DailyMetric, WasteFlag } from '@/types/index'
 
 export function runWasteRules(
   campaignId: string,
