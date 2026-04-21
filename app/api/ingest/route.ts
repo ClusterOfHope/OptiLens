@@ -1,11 +1,65 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
-import { getMetaCampaigns, getMetaCampaignInsights } from '@/lib/meta'
 import { runWasteRules } from '@/lib/rules'
+import axios from 'axios'
 
-export async function POST() {
+const BASE_URL = 'https://graph.facebook.com/v19.0'
+
+async function getCampaigns(adAccountId: string, accessToken: string) {
+  const res = await axios.get(`${BASE_URL}/${adAccountId}/campaigns`, {
+    params: {
+      access_token: accessToken,
+      fields: 'id,name,status,objective,daily_budget,lifetime_budget',
+      limit: 100,
+    },
+  })
+  return res.data.data
+}
+
+async function getCampaignInsights(campaignId: string, accessToken: string) {
+  const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+    .toISOString().split('T')[0]
+  const until = new Date().toISOString().split('T')[0]
+
+  const res = await axios.get(`${BASE_URL}/${campaignId}/insights`, {
+    params: {
+      access_token: accessToken,
+      fields: 'spend,impressions,reach,frequency,clicks,ctr,cpm,actions,action_values,date_start',
+      time_increment: 1,
+      time_range: JSON.stringify({ since, until }),
+      limit: 100,
+    },
+  })
+  return res.data.data || []
+}
+
+export async function POST(req: NextRequest) {
   try {
-    const campaigns = await getMetaCampaigns()
+    // Accept dynamic token from OAuth, fall back to env var for manual use
+    const body = await req.json().catch(() => ({}))
+    const adAccountId = body.ad_account_id || process.env.META_AD_ACCOUNT_ID
+    const accessToken = body.access_token || process.env.META_ACCESS_TOKEN
+
+    if (!adAccountId || !accessToken) {
+      return NextResponse.json(
+        { error: 'No Meta account connected. Please connect via OAuth.' },
+        { status: 400 }
+      )
+    }
+
+    // Get or create the meta_account record
+    const { data: metaAccount } = await supabaseAdmin
+      .from('meta_accounts')
+      .select('id')
+      .eq('ad_account_id', adAccountId)
+      .single()
+
+    const metaAccountId = metaAccount?.id
+
+    const campaigns = await getCampaigns(adAccountId, accessToken)
+
+    let synced = 0
+    let flagsDetected = 0
 
     for (const campaign of campaigns) {
       // 1. Upsert campaign
@@ -13,6 +67,7 @@ export async function POST() {
         .from('campaigns')
         .upsert({
           campaign_id: campaign.id,
+          meta_account_id: metaAccountId,
           name: campaign.name,
           status: campaign.status,
           objective: campaign.objective,
@@ -25,14 +80,18 @@ export async function POST() {
 
       if (!savedCampaign) continue
 
-      // 2. Pull insights
-      const insights = await getMetaCampaignInsights(campaign.id)
+      // 2. Pull 30 days of daily insights
+      const insights = await getCampaignInsights(campaign.id, accessToken)
 
       const metricsToInsert = insights.map((insight: any) => {
-        const purchases = insight.actions?.find((a: any) => a.action_type === 'purchase')?.value || 0
-        const purchaseValue = insight.action_values?.find((a: any) => a.action_type === 'purchase')?.value || 0
+        const purchases = insight.actions?.find(
+          (a: any) => a.action_type === 'purchase' || a.action_type === 'omni_purchase'
+        )?.value || 0
+        const purchaseValue = insight.action_values?.find(
+          (a: any) => a.action_type === 'purchase' || a.action_type === 'omni_purchase'
+        )?.value || 0
         const spend = parseFloat(insight.spend || '0')
-        const roas = spend > 0 ? purchaseValue / spend : 0
+        const roas = spend > 0 ? parseFloat(purchaseValue) / spend : 0
 
         return {
           campaign_id: savedCampaign.id,
@@ -56,7 +115,7 @@ export async function POST() {
           .upsert(metricsToInsert, { onConflict: 'campaign_id,date' })
       }
 
-      // 3. Run waste rules
+      // 3. Run waste detection rules
       const { data: metrics } = await supabaseAdmin
         .from('campaign_daily_metrics')
         .select('*')
@@ -64,22 +123,34 @@ export async function POST() {
         .order('date', { ascending: true })
 
       if (metrics && metrics.length > 0) {
-        // Clear old flags
+        // Clear old flags for this campaign
         await supabaseAdmin
           .from('waste_flags')
-          .update({ is_active: false })
+          .update({ is_active: false, resolved_at: new Date().toISOString() })
           .eq('campaign_id', savedCampaign.id)
+          .eq('is_active', true)
 
         const flags = runWasteRules(savedCampaign.id, metrics)
         if (flags.length > 0) {
           await supabaseAdmin.from('waste_flags').insert(flags)
+          flagsDetected += flags.length
         }
       }
+
+      synced++
     }
 
-    return NextResponse.json({ success: true, message: `Ingested ${campaigns.length} campaigns` })
+    return NextResponse.json({
+      success: true,
+      campaigns_synced: synced,
+      flags_detected: flagsDetected,
+      message: `Synced ${synced} campaigns, detected ${flagsDetected} waste flags`,
+    })
   } catch (error: any) {
-    console.error('Ingest error:', error)
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    console.error('Ingest error:', error.response?.data || error.message)
+    return NextResponse.json(
+      { error: error.response?.data?.error?.message || error.message },
+      { status: 500 }
+    )
   }
 }
