@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 
 type Flag = { flag_type: string; severity: string; description: string; recommendation: string }
@@ -31,7 +31,7 @@ const RECO_STYLE: Record<string,{bg:string,color:string}> = {
 }
 const NAV = ['Dashboard','Campaigns','History','Meta Ads','Shopify']
 
-export default function Dashboard() {
+function Dashboard() {
   const searchParams = useSearchParams()
   const [campaigns, setCampaigns] = useState<Campaign[]>([])
   const [loading, setLoading] = useState(true)
@@ -43,7 +43,6 @@ export default function Dashboard() {
   const [errorMsg, setErrorMsg] = useState('')
 
   useEffect(() => {
-    // Check OAuth result from URL params
     const connected = searchParams.get('connected')
     const error = searchParams.get('error')
 
@@ -92,7 +91,6 @@ export default function Dashboard() {
 
   const handleSync = async () => {
     if (!isConnected) {
-      // Redirect to Meta OAuth
       window.location.href = '/api/auth/meta/connect'
       return
     }
@@ -158,7 +156,6 @@ export default function Dashboard() {
           ))}
         </div>
 
-        {/* Connection status */}
         <div style={{ padding:'16px', borderTop:'1px solid #1f1f1f' }}>
           {isConnected ? (
             <div style={{ background:'#052e1c', border:'1px solid #064e3b', borderRadius:'8px', padding:'10px 12px' }}>
@@ -182,7 +179,6 @@ export default function Dashboard() {
       {/* MAIN */}
       <div style={{ padding:'28px 32px', overflowY:'auto' }}>
 
-        {/* OAuth success/error banners */}
         {showBanner === 'success' && (
           <div style={{ background:'#052e1c', border:'1px solid #064e3b', borderRadius:'10px', padding:'14px 20px', marginBottom:'20px', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
             <div>
@@ -202,7 +198,6 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* Top bar */}
         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:'28px' }}>
           <div>
             <h1 style={{ fontSize:'24px', fontWeight:900, color:'#fff', letterSpacing:'-0.5px', margin:0 }}>Dashboard</h1>
@@ -233,7 +228,6 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Waste banner */}
         {wasted > 0 && (
           <div style={{ background:'#fbbf24', borderRadius:'12px', padding:'20px 24px', marginBottom:'20px', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
             <div>
@@ -256,7 +250,6 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* Metrics */}
         <div style={{ display:'grid', gridTemplateColumns:'repeat(4,minmax(0,1fr))', gap:'12px', marginBottom:'24px' }}>
           {[
             { label:'Total spend',     value:`$${totalSpend.toLocaleString()}`, color:'#fff',     sub:'Last 30 days' },
@@ -272,7 +265,6 @@ export default function Dashboard() {
           ))}
         </div>
 
-        {/* Campaign header */}
         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'12px' }}>
           <div style={{ fontSize:'14px', fontWeight:800, color:'#fff', letterSpacing:'-0.3px' }}>
             Campaign performance
@@ -293,14 +285,12 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Column headers */}
         <div style={{ display:'grid', gridTemplateColumns:'1fr 90px 90px 70px 80px 90px 120px', gap:'8px', padding:'0 16px', marginBottom:'6px' }}>
           {['Campaign','Spend','Revenue','ROAS','Waste','Health','Action'].map((h,i) => (
             <div key={h} style={{ fontSize:'9px', color:'#333', fontWeight:700, textTransform:'uppercase', letterSpacing:'0.08em', textAlign: i===0 ? 'left' : 'right' }}>{h}</div>
           ))}
         </div>
 
-        {/* Campaign rows */}
         {loading ? (
           <div style={{ textAlign:'center', padding:'60px', color:'#444', fontSize:'13px' }}>
             {isConnected ? 'Pulling your real campaigns from Meta...' : 'Loading demo data...'}
@@ -358,7 +348,6 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* Footer */}
         <div style={{ marginTop:'32px', paddingTop:'20px', borderTop:'1px solid #1f1f1f', display:'flex', justifyContent:'space-between' }}>
           <div style={{ fontSize:'11px', color:'#333' }}>OptiLens · Optimize every ad dollar</div>
           <div style={{ fontSize:'11px', color:'#333' }}>
@@ -367,5 +356,17 @@ export default function Dashboard() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function DashboardPage() {
+  return (
+    <Suspense fallback={
+      <div style={{ background:'#111', minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center', color:'#444', fontFamily:'system-ui' }}>
+        Loading...
+      </div>
+    }>
+      <Dashboard />
+    </Suspense>
   )
 }
