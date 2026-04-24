@@ -35,10 +35,31 @@ async function getCampaignInsights(campaignId: string, accessToken: string) {
 
 export async function POST(req: NextRequest) {
   try {
-    // Accept dynamic token from OAuth, fall back to env var for manual use
     const body = await req.json().catch(() => ({}))
-    const adAccountId = body.ad_account_id || process.env.META_AD_ACCOUNT_ID
-    const accessToken = body.access_token || process.env.META_ACCESS_TOKEN
+
+    let adAccountId = body.ad_account_id
+    let accessToken = body.access_token
+    let metaAccountId: string | undefined
+
+    // If no token in body, fetch the most recently connected account from Supabase
+    if (!accessToken) {
+      const { data: savedAccount, error: fetchError } = await supabaseAdmin
+        .from('meta_accounts')
+        .select('id, ad_account_id, access_token')
+        .order('updated_at', { ascending: false })
+        .limit(1)
+        .single()
+
+      if (fetchError || !savedAccount) {
+        // Final fallback to env variable (legacy support)
+        adAccountId = adAccountId || process.env.META_AD_ACCOUNT_ID
+        accessToken = process.env.META_ACCESS_TOKEN
+      } else {
+        adAccountId = adAccountId || savedAccount.ad_account_id
+        accessToken = savedAccount.access_token
+        metaAccountId = savedAccount.id
+      }
+    }
 
     if (!adAccountId || !accessToken) {
       return NextResponse.json(
@@ -47,14 +68,15 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // Get or create the meta_account record
-    const { data: metaAccount } = await supabaseAdmin
-      .from('meta_accounts')
-      .select('id')
-      .eq('ad_account_id', adAccountId)
-      .single()
-
-    const metaAccountId = metaAccount?.id
+    // Get the meta_account record id if we don't have it yet
+    if (!metaAccountId) {
+      const { data: metaAccount } = await supabaseAdmin
+        .from('meta_accounts')
+        .select('id')
+        .eq('ad_account_id', adAccountId)
+        .single()
+      metaAccountId = metaAccount?.id
+    }
 
     const campaigns = await getCampaigns(adAccountId, accessToken)
 
@@ -62,7 +84,6 @@ export async function POST(req: NextRequest) {
     let flagsDetected = 0
 
     for (const campaign of campaigns) {
-      // 1. Upsert campaign
       const { data: savedCampaign } = await supabaseAdmin
         .from('campaigns')
         .upsert({
@@ -80,7 +101,6 @@ export async function POST(req: NextRequest) {
 
       if (!savedCampaign) continue
 
-      // 2. Pull 30 days of daily insights
       const insights = await getCampaignInsights(campaign.id, accessToken)
 
       const metricsToInsert = insights.map((insight: any) => {
@@ -115,7 +135,6 @@ export async function POST(req: NextRequest) {
           .upsert(metricsToInsert, { onConflict: 'campaign_id,date' })
       }
 
-      // 3. Run waste detection rules
       const { data: metrics } = await supabaseAdmin
         .from('campaign_daily_metrics')
         .select('*')
@@ -123,7 +142,6 @@ export async function POST(req: NextRequest) {
         .order('date', { ascending: true })
 
       if (metrics && metrics.length > 0) {
-        // Clear old flags for this campaign
         await supabaseAdmin
           .from('waste_flags')
           .update({ is_active: false, resolved_at: new Date().toISOString() })
