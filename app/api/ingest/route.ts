@@ -17,10 +17,8 @@ async function getCampaigns(adAccountId: string, accessToken: string) {
 }
 
 async function getCampaignInsights(campaignId: string, accessToken: string) {
-  const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
-    .toISOString().split('T')[0]
+  const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
   const until = new Date().toISOString().split('T')[0]
-
   const res = await axios.get(`${BASE_URL}/${campaignId}/insights`, {
     params: {
       access_token: accessToken,
@@ -34,29 +32,30 @@ async function getCampaignInsights(campaignId: string, accessToken: string) {
 }
 
 export async function POST(req: NextRequest) {
+  const startTime = Date.now()
+  const userId = req.cookies.get('optilens_uid')?.value
+
+  let metaAccountId: string | undefined
+  let synced = 0
+  let flagsDetected = 0
+  let flagsResolved = 0
+  let errorMessage: string | null = null
+
   try {
     const body = await req.json().catch(() => ({}))
-    const userId = req.cookies.get('optilens_uid')?.value
-
     let adAccountId = body.ad_account_id
     let accessToken = body.access_token
-    let metaAccountId: string | undefined
 
-    // If no token in body, look up from user's saved Meta account
     if (!accessToken) {
       let query = supabaseAdmin
         .from('meta_accounts')
         .select('id, ad_account_id, access_token')
         .order('updated_at', { ascending: false })
         .limit(1)
+      if (userId) query = query.eq('user_id', userId)
+      const { data: savedAccount } = await query.single()
 
-      if (userId) {
-        query = query.eq('user_id', userId)
-      }
-
-      const { data: savedAccount, error: fetchError } = await query.single()
-
-      if (fetchError || !savedAccount) {
+      if (!savedAccount) {
         adAccountId = adAccountId || process.env.META_AD_ACCOUNT_ID
         accessToken = process.env.META_ACCESS_TOKEN
       } else {
@@ -67,25 +66,19 @@ export async function POST(req: NextRequest) {
     }
 
     if (!adAccountId || !accessToken) {
-      return NextResponse.json(
-        { error: 'No Meta account connected. Please connect via OAuth.' },
-        { status: 400 }
-      )
+      throw new Error('No Meta account connected')
     }
 
     if (!metaAccountId) {
-      const { data: metaAccount } = await supabaseAdmin
+      const { data: ma } = await supabaseAdmin
         .from('meta_accounts')
         .select('id')
         .eq('ad_account_id', adAccountId)
         .single()
-      metaAccountId = metaAccount?.id
+      metaAccountId = ma?.id
     }
 
     const campaigns = await getCampaigns(adAccountId, accessToken)
-
-    let synced = 0
-    let flagsDetected = 0
 
     for (const campaign of campaigns) {
       const { data: savedCampaign } = await supabaseAdmin
@@ -106,17 +99,11 @@ export async function POST(req: NextRequest) {
       if (!savedCampaign) continue
 
       const insights = await getCampaignInsights(campaign.id, accessToken)
-
       const metricsToInsert = insights.map((insight: any) => {
-        const purchases = insight.actions?.find(
-          (a: any) => a.action_type === 'purchase' || a.action_type === 'omni_purchase'
-        )?.value || 0
-        const purchaseValue = insight.action_values?.find(
-          (a: any) => a.action_type === 'purchase' || a.action_type === 'omni_purchase'
-        )?.value || 0
+        const purchases = insight.actions?.find((a: any) => a.action_type === 'purchase' || a.action_type === 'omni_purchase')?.value || 0
+        const purchaseValue = insight.action_values?.find((a: any) => a.action_type === 'purchase' || a.action_type === 'omni_purchase')?.value || 0
         const spend = parseFloat(insight.spend || '0')
         const roas = spend > 0 ? parseFloat(purchaseValue) / spend : 0
-
         return {
           campaign_id: savedCampaign.id,
           date: insight.date_start,
@@ -134,9 +121,7 @@ export async function POST(req: NextRequest) {
       })
 
       if (metricsToInsert.length > 0) {
-        await supabaseAdmin
-          .from('campaign_daily_metrics')
-          .upsert(metricsToInsert, { onConflict: 'campaign_id,date' })
+        await supabaseAdmin.from('campaign_daily_metrics').upsert(metricsToInsert, { onConflict: 'campaign_id,date' })
       }
 
       const { data: metrics } = await supabaseAdmin
@@ -146,11 +131,20 @@ export async function POST(req: NextRequest) {
         .order('date', { ascending: true })
 
       if (metrics && metrics.length > 0) {
-        await supabaseAdmin
+        // Resolve old active flags first
+        const { data: oldFlags } = await supabaseAdmin
           .from('waste_flags')
-          .update({ is_active: false, resolved_at: new Date().toISOString() })
+          .select('id')
           .eq('campaign_id', savedCampaign.id)
           .eq('is_active', true)
+
+        if (oldFlags && oldFlags.length > 0) {
+          await supabaseAdmin
+            .from('waste_flags')
+            .update({ is_active: false, resolved_at: new Date().toISOString() })
+            .in('id', oldFlags.map((f) => f.id))
+          flagsResolved += oldFlags.length
+        }
 
         const flags = runWasteRules(savedCampaign.id, metrics)
         if (flags.length > 0) {
@@ -162,6 +156,21 @@ export async function POST(req: NextRequest) {
       synced++
     }
 
+    const duration = Date.now() - startTime
+
+    // Log to sync_history
+    if (userId && metaAccountId) {
+      await supabaseAdmin.from('sync_history').insert({
+        user_id: userId,
+        meta_account_id: metaAccountId,
+        status: 'success',
+        campaigns_synced: synced,
+        flags_detected: flagsDetected,
+        flags_resolved: flagsResolved,
+        duration_ms: duration,
+      })
+    }
+
     return NextResponse.json({
       success: true,
       campaigns_synced: synced,
@@ -169,10 +178,23 @@ export async function POST(req: NextRequest) {
       message: `Synced ${synced} campaigns · ${flagsDetected} flags detected`,
     })
   } catch (error: any) {
-    console.error('Ingest error:', error.response?.data || error.message)
-    return NextResponse.json(
-      { error: error.response?.data?.error?.message || error.message },
-      { status: 500 }
-    )
+    errorMessage = error.response?.data?.error?.message || error.message
+    console.error('Ingest error:', errorMessage)
+
+    // Log failed sync
+    if (userId) {
+      await supabaseAdmin.from('sync_history').insert({
+        user_id: userId,
+        meta_account_id: metaAccountId,
+        status: 'failed',
+        campaigns_synced: synced,
+        flags_detected: flagsDetected,
+        flags_resolved: flagsResolved,
+        error_message: errorMessage,
+        duration_ms: Date.now() - startTime,
+      })
+    }
+
+    return NextResponse.json({ error: errorMessage }, { status: 500 })
   }
 }
