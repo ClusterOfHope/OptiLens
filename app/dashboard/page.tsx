@@ -58,7 +58,6 @@ export default function Dashboard() {
       const data = await res.json()
       if (data.success) {
         setSyncMessage(data.message || 'Sync complete')
-        // Reload data
         const me = await fetch('/api/me').then((r) => r.json())
         if (me.campaigns) setCampaigns(me.campaigns)
         if (me.trend) setTrendData(me.trend)
@@ -102,9 +101,6 @@ export default function Dashboard() {
 
   return (
     <div style={styles.page}>
-      <div style={styles.grain} />
-
-      {/* SIDEBAR */}
       <aside style={styles.sidebar}>
         <div style={styles.sidebarTop}>
           <div style={styles.logo}>
@@ -131,9 +127,7 @@ export default function Dashboard() {
         </div>
       </aside>
 
-      {/* MAIN */}
       <main style={styles.main}>
-        {/* TOP BAR */}
         <div style={styles.topbar}>
           <div>
             <h1 style={styles.title}>Dashboard</h1>
@@ -159,16 +153,13 @@ export default function Dashboard() {
                     <div style={styles.dropdownName}>{user.name}</div>
                     <div style={styles.dropdownEmail}>{user.email}</div>
                   </div>
-                  <button onClick={handleLogout} style={styles.dropdownItem}>
-                    Sign out
-                  </button>
+                  <button onClick={handleLogout} style={styles.dropdownItem}>Sign out</button>
                 </div>
               )}
             </div>
           </div>
         </div>
 
-        {/* ALERT BANNER */}
         {flaggedCount > 0 && (
           <div style={styles.alertBanner}>
             <div>
@@ -179,15 +170,12 @@ export default function Dashboard() {
               <div style={styles.alertSub}>Pause these immediately to stop the bleed</div>
             </div>
             <div style={styles.alertNumber}>
-              <div style={styles.alertAmount}>
-                ${Math.round(wasteSpend).toLocaleString()}
-              </div>
+              <div style={styles.alertAmount}>${Math.round(wasteSpend).toLocaleString()}</div>
               <div style={styles.alertNumberSub}>wasted this month</div>
             </div>
           </div>
         )}
 
-        {/* METRIC CARDS */}
         <div style={styles.metricsRow}>
           <Metric label="TOTAL SPEND" value={`$${Math.round(totalSpend).toLocaleString()}`} sub="Last 30 days" />
           <Metric label="REVENUE" value={`$${Math.round(totalRevenue).toLocaleString()}`} sub="Meta attributed" tone="green" />
@@ -195,7 +183,6 @@ export default function Dashboard() {
           <Metric label="BUDGET WASTED" value={`${wastePercent}%`} sub={`$${Math.round(wasteSpend).toLocaleString()} lost`} tone={wastePercent > 30 ? 'red' : 'amber'} />
         </div>
 
-        {/* CHART */}
         <div style={styles.chartCard}>
           <div style={styles.chartHeader}>
             <div>
@@ -210,7 +197,6 @@ export default function Dashboard() {
           <TrendChart data={trendData.length ? trendData : DEMO_TREND} />
         </div>
 
-        {/* CAMPAIGNS */}
         <div style={styles.campaignsHeader}>
           <h2 style={styles.campaignsTitle}>
             Campaign performance <span style={styles.campaignsCount}>{campaigns.length} campaigns</span>
@@ -234,9 +220,7 @@ export default function Dashboard() {
           </div>
 
           {filteredCampaigns.length === 0 ? (
-            <div style={styles.emptyState}>
-              No campaigns match this filter.
-            </div>
+            <div style={styles.emptyState}>No campaigns match this filter.</div>
           ) : (
             filteredCampaigns.map((c) => <CampaignRow key={c.id} campaign={c} />)
           )}
@@ -246,13 +230,8 @@ export default function Dashboard() {
   )
 }
 
-/* ─── Sub-components ─────────────────────────────── */
-
 function Metric({ label, value, sub, tone }: { label: string; value: string; sub: string; tone?: string }) {
-  const valueColor =
-    tone === 'green' ? '#34D399' :
-    tone === 'amber' ? '#FBBF24' :
-    tone === 'red' ? '#F87171' : '#fff'
+  const valueColor = tone === 'green' ? '#34D399' : tone === 'amber' ? '#FBBF24' : tone === 'red' ? '#F87171' : '#fff'
   return (
     <div style={styles.metricCard}>
       <div style={styles.metricLabel}>{label}</div>
@@ -263,21 +242,16 @@ function Metric({ label, value, sub, tone }: { label: string; value: string; sub
 }
 
 function CampaignRow({ campaign: c }: { campaign: Campaign }) {
-  const barColor =
-    c.health === 'critical' ? '#F87171' :
-    c.health === 'warning' ? '#FBBF24' : '#34D399'
-
+  const barColor = c.health === 'critical' ? '#F87171' : c.health === 'warning' ? '#FBBF24' : '#34D399'
   const actionStyle =
-    c.health === 'critical' ? { background: 'rgba(248,113,113,0.15)', color: '#F87171' } :
-    c.health === 'warning' ? { background: 'rgba(251,191,36,0.15)', color: '#FBBF24' } :
-    { background: 'rgba(52,211,153,0.15)', color: '#34D399' }
-
+    c.health === 'critical' ? { background: 'rgba(248,113,113,0.18)', color: '#F87171' } :
+    c.health === 'warning' ? { background: 'rgba(251,191,36,0.18)', color: '#FBBF24' } :
+    { background: 'rgba(52,211,153,0.18)', color: '#34D399' }
   const action = c.health === 'critical' ? 'Pause now' : c.health === 'warning' ? 'Pause now' : 'Scale up'
-
   const roasColor = c.roas >= 2 ? '#34D399' : c.roas >= 1 ? '#FBBF24' : '#F87171'
 
   return (
-    <div style={{ ...styles.campaignRow, borderLeft: `2px solid ${barColor}` }}>
+    <div style={{ ...styles.campaignRow, borderLeft: `3px solid ${barColor}` }}>
       <div style={{ flex: 2, minWidth: 0 }}>
         <div style={styles.cName}>{c.name}</div>
         <div style={styles.cMeta}>
@@ -290,10 +264,10 @@ function CampaignRow({ campaign: c }: { campaign: Campaign }) {
       <div style={{ width: 90, textAlign: 'right', fontWeight: 500, color: c.revenue === 0 ? '#F87171' : '#fff' }}>${Math.round(c.revenue).toLocaleString()}</div>
       <div style={{ width: 70, textAlign: 'right', fontWeight: 500, color: roasColor }}>{c.roas.toFixed(2)}x</div>
       <div style={{ width: 90, textAlign: 'center' }}>
-        <div style={{ display: 'inline-block', width: 60, height: 4, borderRadius: 2, background: '#2E2E34', overflow: 'hidden' }}>
+        <div style={{ display: 'inline-block', width: 60, height: 4, borderRadius: 2, background: '#2D3340', overflow: 'hidden' }}>
           <div style={{ width: `${c.waste_score * 10}%`, height: '100%', background: barColor }} />
         </div>
-        <div style={{ fontSize: 10, color: '#6B6B78', marginTop: 4 }}>{c.waste_score}/10</div>
+        <div style={{ fontSize: 10, color: '#6B7280', marginTop: 4 }}>{c.waste_score}/10</div>
       </div>
       <div style={{ width: 110, textAlign: 'center' }}>
         <span style={{ ...styles.healthTag, color: barColor }}>{c.recommendation || '—'}</span>
@@ -312,13 +286,12 @@ function TrendChart({ data }: { data: number[] }) {
     const y = 100 - (v / max) * 80
     return `${x},${y}`
   }).join(' ')
-
   const fillPoints = `0,100 ${points} 100,100`
 
   return (
     <div style={styles.chartContainer}>
       <svg viewBox="0 0 100 100" preserveAspectRatio="none" style={{ width: '100%', height: 180, display: 'block' }}>
-        <polyline points={fillPoints} fill="rgba(248,113,113,0.08)" stroke="none" />
+        <polyline points={fillPoints} fill="rgba(248,113,113,0.12)" stroke="none" />
         <polyline points={points} fill="none" stroke="#F87171" strokeWidth="0.5" vectorEffect="non-scaling-stroke" />
       </svg>
       <div style={styles.chartXAxis}>
@@ -332,17 +305,15 @@ function TrendChart({ data }: { data: number[] }) {
 
 const DEMO_TREND = [120, 150, 180, 220, 260, 300, 340, 290, 250, 280, 310, 350, 410, 470, 520, 480, 440, 460, 510, 560, 600, 580, 540, 590, 640, 690, 720, 680, 640, 620]
 
-/* ─── Styles ─────────────────────────────────────── */
-
 const colors = {
-  bg: '#1F1F23',
-  bgSecondary: '#1A1A1E',
-  surface: '#28282E',
-  surfaceLight: '#2E2E34',
-  border: '#2E2E34',
+  bg: '#0A0B0E',
+  bgSecondary: '#101218',
+  surface: '#1A1D24',
+  surfaceLight: '#22262F',
+  border: '#2D3340',
   text: '#FFFFFF',
-  textSecondary: '#9090A0',
-  textTertiary: '#6B6B78',
+  textSecondary: '#A0A8B5',
+  textTertiary: '#6B7280',
   primary: '#FFFFFF',
   green: '#34D399',
   amber: '#FBBF24',
@@ -357,416 +328,161 @@ const fonts = {
 
 const styles: Record<string, React.CSSProperties> = {
   loadingPage: {
-    background: colors.bg,
-    color: colors.textSecondary,
-    minHeight: '100vh',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    fontFamily: fonts.body,
+    background: colors.bg, color: colors.textSecondary, minHeight: '100vh',
+    display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: fonts.body,
   },
   loadingText: { fontSize: 14, fontFamily: fonts.mono },
 
   page: {
-    display: 'grid',
-    gridTemplateColumns: '240px 1fr',
-    background: colors.bg,
-    color: colors.text,
-    fontFamily: fonts.body,
-    minHeight: '100vh',
-    position: 'relative',
-  },
-  grain: {
-    position: 'fixed',
-    inset: 0,
-    pointerEvents: 'none',
-    opacity: 0.025,
-    background: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'200\' height=\'200\' viewBox=\'0 0 200 200\'%3E%3Cfilter id=\'n\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.9\' numOctaves=\'4\' /%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23n)\' /%3E%3C/svg%3E")',
-    zIndex: 1,
+    display: 'grid', gridTemplateColumns: '240px 1fr',
+    background: colors.bg, color: colors.text, fontFamily: fonts.body,
+    minHeight: '100vh', position: 'relative',
   },
 
   sidebar: {
     background: colors.bgSecondary,
-    borderRight: `0.5px solid ${colors.border}`,
-    padding: '28px 20px',
-    display: 'flex',
-    flexDirection: 'column',
-    position: 'relative',
-    zIndex: 2,
+    borderRight: `1px solid ${colors.border}`,
+    padding: '28px 20px', display: 'flex', flexDirection: 'column',
+    position: 'relative', zIndex: 2,
   },
   sidebarTop: { marginBottom: 40 },
-  logo: {
-    fontFamily: fonts.display,
-    fontSize: 24,
-    fontWeight: 600,
-    letterSpacing: '-0.02em',
-    marginBottom: 4,
-  },
+  logo: { fontFamily: fonts.display, fontSize: 24, fontWeight: 600, letterSpacing: '-0.02em', marginBottom: 4 },
   logoOpti: { color: colors.text },
   logoLens: { color: colors.amber },
-  tagline: {
-    fontSize: 11,
-    color: colors.textTertiary,
-    letterSpacing: '0.02em',
-  },
+  tagline: { fontSize: 11, color: colors.textTertiary, letterSpacing: '0.02em' },
   menu: { flex: 1 },
   menuLabel: {
-    fontSize: 10,
-    fontWeight: 600,
-    color: colors.textTertiary,
-    letterSpacing: '0.15em',
-    marginBottom: 12,
-    paddingLeft: 12,
+    fontSize: 10, fontWeight: 600, color: colors.textTertiary,
+    letterSpacing: '0.15em', marginBottom: 12, paddingLeft: 12,
   },
   menuItem: {
-    display: 'block',
-    padding: '10px 12px',
-    color: colors.textSecondary,
-    fontSize: 14,
-    fontWeight: 500,
-    borderRadius: 6,
-    cursor: 'pointer',
-    marginBottom: 2,
+    display: 'block', padding: '10px 12px', color: colors.textSecondary,
+    fontSize: 14, fontWeight: 500, borderRadius: 6, cursor: 'pointer', marginBottom: 2,
   },
-  menuItemActive: {
-    background: colors.surface,
-    color: colors.amber,
-  },
+  menuItemActive: { background: colors.surface, color: colors.amber },
   sidebarBottom: { marginTop: 'auto' },
   betaBadge: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: 8,
-    padding: '8px 12px',
-    background: 'rgba(251,191,36,0.08)',
-    border: `0.5px solid rgba(251,191,36,0.2)`,
-    borderRadius: 100,
-    fontSize: 11,
-    fontWeight: 600,
-    color: colors.amber,
-    letterSpacing: '0.02em',
+    display: 'inline-flex', alignItems: 'center', gap: 8,
+    padding: '8px 12px', background: 'rgba(251,191,36,0.1)',
+    border: `1px solid rgba(251,191,36,0.3)`, borderRadius: 100,
+    fontSize: 11, fontWeight: 600, color: colors.amber, letterSpacing: '0.02em',
   },
-  betaDot: {
-    width: 6,
-    height: 6,
-    background: colors.amber,
-    borderRadius: '50%',
-    boxShadow: `0 0 8px ${colors.amber}`,
-  },
+  betaDot: { width: 6, height: 6, background: colors.amber, borderRadius: '50%', boxShadow: `0 0 8px ${colors.amber}` },
 
-  main: {
-    padding: '32px 40px 80px',
-    position: 'relative',
-    zIndex: 2,
-    overflow: 'auto',
-  },
-  topbar: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 32,
-  },
-  title: {
-    fontFamily: fonts.display,
-    fontSize: 36,
-    fontWeight: 500,
-    letterSpacing: '-0.02em',
-    color: colors.text,
-  },
-  subtitle: {
-    fontSize: 12,
-    color: colors.textTertiary,
-    marginTop: 4,
-  },
-  topActions: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 14,
-  },
-  syncMessage: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    fontFamily: fonts.mono,
-  },
+  main: { padding: '32px 40px 80px', position: 'relative', zIndex: 2, overflow: 'auto' },
+  topbar: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 32 },
+  title: { fontFamily: fonts.display, fontSize: 36, fontWeight: 500, letterSpacing: '-0.02em', color: colors.text },
+  subtitle: { fontSize: 12, color: colors.textTertiary, marginTop: 4 },
+  topActions: { display: 'flex', alignItems: 'center', gap: 14 },
+  syncMessage: { fontSize: 12, color: colors.textSecondary, fontFamily: fonts.mono },
   syncBtn: {
-    background: colors.primary,
-    color: '#1F1F23',
-    border: 'none',
-    padding: '10px 18px',
-    borderRadius: 8,
-    fontSize: 13,
-    fontWeight: 600,
-    cursor: 'pointer',
-    fontFamily: fonts.body,
+    background: colors.primary, color: '#0A0B0E', border: 'none',
+    padding: '10px 18px', borderRadius: 8, fontSize: 13, fontWeight: 600,
+    cursor: 'pointer', fontFamily: fonts.body,
+    boxShadow: '0 4px 12px rgba(255,255,255,0.1)',
   },
   avatarBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: '50%',
-    border: `0.5px solid ${colors.border}`,
-    padding: 0,
-    overflow: 'hidden',
-    cursor: 'pointer',
-    background: colors.surface,
+    width: 36, height: 36, borderRadius: '50%',
+    border: `1px solid ${colors.border}`, padding: 0, overflow: 'hidden',
+    cursor: 'pointer', background: colors.surface,
   },
   avatar: { width: '100%', height: '100%', objectFit: 'cover' },
   avatarFallback: {
-    width: '100%',
-    height: '100%',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    background: colors.surface,
-    color: colors.text,
-    fontSize: 14,
-    fontWeight: 600,
+    width: '100%', height: '100%', display: 'flex',
+    alignItems: 'center', justifyContent: 'center',
+    background: colors.surface, color: colors.text, fontSize: 14, fontWeight: 600,
   },
   dropdown: {
-    position: 'absolute',
-    top: 48,
-    right: 0,
-    background: colors.surface,
-    border: `0.5px solid ${colors.border}`,
-    borderRadius: 10,
-    minWidth: 220,
-    boxShadow: '0 10px 30px rgba(0,0,0,0.4)',
-    zIndex: 50,
+    position: 'absolute', top: 48, right: 0,
+    background: colors.surface, border: `1px solid ${colors.border}`,
+    borderRadius: 10, minWidth: 220,
+    boxShadow: '0 10px 30px rgba(0,0,0,0.6)', zIndex: 50,
   },
-  dropdownHeader: {
-    padding: '14px 16px',
-    borderBottom: `0.5px solid ${colors.border}`,
-  },
+  dropdownHeader: { padding: '14px 16px', borderBottom: `1px solid ${colors.border}` },
   dropdownName: { fontSize: 14, fontWeight: 600 },
   dropdownEmail: { fontSize: 12, color: colors.textTertiary, marginTop: 2 },
   dropdownItem: {
-    width: '100%',
-    padding: '12px 16px',
-    background: 'transparent',
-    border: 'none',
-    color: colors.text,
-    fontSize: 13,
-    textAlign: 'left',
-    cursor: 'pointer',
-    fontFamily: fonts.body,
+    width: '100%', padding: '12px 16px', background: 'transparent',
+    border: 'none', color: colors.text, fontSize: 13, textAlign: 'left',
+    cursor: 'pointer', fontFamily: fonts.body,
   },
 
   alertBanner: {
-    background: colors.surface,
-    border: `0.5px solid ${colors.border}`,
-    borderLeft: `3px solid ${colors.amber}`,
-    borderRadius: 10,
-    padding: '20px 24px',
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 24,
+    background: colors.surface, border: `1px solid ${colors.border}`,
+    borderLeft: `3px solid ${colors.amber}`, borderRadius: 10,
+    padding: '20px 24px', display: 'flex',
+    justifyContent: 'space-between', alignItems: 'center', marginBottom: 24,
+    boxShadow: '0 4px 12px rgba(0,0,0,0.4)',
   },
-  alertLabel: {
-    fontSize: 10,
-    fontWeight: 700,
-    letterSpacing: '0.15em',
-    color: colors.amber,
-    marginBottom: 6,
-  },
-  alertTitle: {
-    fontSize: 18,
-    fontWeight: 600,
-    color: colors.text,
-    marginBottom: 4,
-  },
-  alertSub: {
-    fontSize: 13,
-    color: colors.textSecondary,
-  },
+  alertLabel: { fontSize: 10, fontWeight: 700, letterSpacing: '0.15em', color: colors.amber, marginBottom: 6 },
+  alertTitle: { fontSize: 18, fontWeight: 600, color: colors.text, marginBottom: 4 },
+  alertSub: { fontSize: 13, color: colors.textSecondary },
   alertNumber: { textAlign: 'right' },
-  alertAmount: {
-    fontFamily: fonts.display,
-    fontSize: 36,
-    fontWeight: 600,
-    color: colors.amber,
-    lineHeight: 1,
-  },
-  alertNumberSub: {
-    fontSize: 11,
-    color: colors.textTertiary,
-    marginTop: 4,
-  },
+  alertAmount: { fontFamily: fonts.display, fontSize: 36, fontWeight: 600, color: colors.amber, lineHeight: 1 },
+  alertNumberSub: { fontSize: 11, color: colors.textTertiary, marginTop: 4 },
 
-  metricsRow: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(4, 1fr)',
-    gap: 12,
-    marginBottom: 24,
-  },
+  metricsRow: { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 24 },
   metricCard: {
-    background: colors.surface,
-    border: `0.5px solid ${colors.border}`,
-    borderRadius: 10,
-    padding: '18px 20px',
+    background: colors.surface, border: `1px solid ${colors.border}`,
+    borderRadius: 10, padding: '18px 20px',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
   },
-  metricLabel: {
-    fontSize: 10,
-    color: colors.textTertiary,
-    letterSpacing: '0.1em',
-    marginBottom: 8,
-    fontWeight: 600,
-  },
-  metricValue: {
-    fontFamily: fonts.display,
-    fontSize: 32,
-    fontWeight: 500,
-    lineHeight: 1,
-    marginBottom: 6,
-    letterSpacing: '-0.02em',
-  },
-  metricSub: {
-    fontSize: 11,
-    color: colors.textTertiary,
-  },
+  metricLabel: { fontSize: 10, color: colors.textTertiary, letterSpacing: '0.1em', marginBottom: 8, fontWeight: 600 },
+  metricValue: { fontFamily: fonts.display, fontSize: 32, fontWeight: 500, lineHeight: 1, marginBottom: 6, letterSpacing: '-0.02em' },
+  metricSub: { fontSize: 11, color: colors.textTertiary },
 
   chartCard: {
-    background: colors.surface,
-    border: `0.5px solid ${colors.border}`,
-    borderRadius: 10,
-    padding: '20px 24px',
-    marginBottom: 32,
+    background: colors.surface, border: `1px solid ${colors.border}`,
+    borderRadius: 10, padding: '20px 24px', marginBottom: 32,
+    boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
   },
-  chartHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 18,
-  },
-  chartTitle: {
-    fontSize: 14,
-    fontWeight: 600,
-    color: colors.text,
-    marginBottom: 4,
-  },
-  chartSub: {
-    fontSize: 11,
-    color: colors.textTertiary,
-  },
-  chartLegend: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 6,
-    fontSize: 11,
-    color: colors.textSecondary,
-  },
-  legendDot: {
-    width: 8,
-    height: 8,
-    background: colors.red,
-    borderRadius: '50%',
-  },
+  chartHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 18 },
+  chartTitle: { fontSize: 14, fontWeight: 600, color: colors.text, marginBottom: 4 },
+  chartSub: { fontSize: 11, color: colors.textTertiary },
+  chartLegend: { display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: colors.textSecondary },
+  legendDot: { width: 8, height: 8, background: colors.red, borderRadius: '50%' },
   chartContainer: { position: 'relative' },
   chartXAxis: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    fontSize: 10,
-    color: colors.textTertiary,
-    marginTop: 8,
-    fontFamily: fonts.mono,
+    display: 'flex', justifyContent: 'space-between',
+    fontSize: 10, color: colors.textTertiary, marginTop: 8, fontFamily: fonts.mono,
   },
 
-  campaignsHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  campaignsTitle: {
-    fontSize: 18,
-    fontWeight: 600,
-  },
-  campaignsCount: {
-    fontWeight: 400,
-    color: colors.textTertiary,
-    fontSize: 14,
-    marginLeft: 8,
-  },
+  campaignsHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
+  campaignsTitle: { fontSize: 18, fontWeight: 600 },
+  campaignsCount: { fontWeight: 400, color: colors.textTertiary, fontSize: 14, marginLeft: 8 },
   filterTabs: {
-    display: 'flex',
-    gap: 4,
-    background: colors.surface,
-    border: `0.5px solid ${colors.border}`,
-    borderRadius: 8,
-    padding: 3,
+    display: 'flex', gap: 4, background: colors.surface,
+    border: `1px solid ${colors.border}`, borderRadius: 8, padding: 3,
   },
   filterTab: {
-    background: 'transparent',
-    border: 'none',
-    padding: '6px 14px',
-    fontSize: 12,
-    fontWeight: 500,
-    color: colors.textSecondary,
-    borderRadius: 5,
-    cursor: 'pointer',
-    fontFamily: fonts.body,
+    background: 'transparent', border: 'none', padding: '6px 14px',
+    fontSize: 12, fontWeight: 500, color: colors.textSecondary,
+    borderRadius: 5, cursor: 'pointer', fontFamily: fonts.body,
   },
-  filterTabActive: {
-    background: colors.amber,
-    color: '#1F1F23',
-  },
+  filterTabActive: { background: colors.amber, color: '#0A0B0E' },
 
   campaignTable: {
-    background: colors.surface,
-    border: `0.5px solid ${colors.border}`,
-    borderRadius: 10,
-    overflow: 'hidden',
+    background: colors.surface, border: `1px solid ${colors.border}`,
+    borderRadius: 10, overflow: 'hidden',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
   },
   tableHeader: {
-    display: 'flex',
-    alignItems: 'center',
-    padding: '14px 20px',
-    fontSize: 10,
-    fontWeight: 700,
-    letterSpacing: '0.1em',
-    color: colors.textTertiary,
-    borderBottom: `0.5px solid ${colors.border}`,
-    gap: 16,
+    display: 'flex', alignItems: 'center', padding: '14px 20px',
+    fontSize: 10, fontWeight: 700, letterSpacing: '0.1em',
+    color: colors.textTertiary, borderBottom: `1px solid ${colors.border}`, gap: 16,
+    background: colors.bgSecondary,
   },
   campaignRow: {
-    display: 'flex',
-    alignItems: 'center',
-    padding: '16px 20px',
-    borderBottom: `0.5px solid ${colors.border}`,
-    gap: 16,
-    fontSize: 13,
+    display: 'flex', alignItems: 'center', padding: '16px 20px',
+    borderBottom: `1px solid ${colors.border}`, gap: 16, fontSize: 13,
   },
-  cName: {
-    fontSize: 14,
-    fontWeight: 500,
-    color: colors.text,
-    marginBottom: 4,
-  },
-  cMeta: {
-    fontSize: 11,
-    color: colors.textTertiary,
-    display: 'flex',
-    gap: 6,
-    alignItems: 'center',
-  },
+  cName: { fontSize: 14, fontWeight: 500, color: colors.text, marginBottom: 4 },
+  cMeta: { fontSize: 11, color: colors.textTertiary, display: 'flex', gap: 6, alignItems: 'center' },
   cMetaDivider: { color: colors.border },
-  healthTag: {
-    fontSize: 10,
-    fontWeight: 600,
-    letterSpacing: '0.05em',
-  },
+  healthTag: { fontSize: 10, fontWeight: 600, letterSpacing: '0.05em' },
   actionTag: {
-    display: 'inline-block',
-    fontSize: 10,
-    fontWeight: 700,
-    padding: '5px 10px',
-    borderRadius: 4,
-    letterSpacing: '0.05em',
-    textTransform: 'uppercase',
+    display: 'inline-block', fontSize: 10, fontWeight: 700,
+    padding: '5px 10px', borderRadius: 4, letterSpacing: '0.05em', textTransform: 'uppercase',
   },
-  emptyState: {
-    padding: '60px 20px',
-    textAlign: 'center',
-    color: colors.textTertiary,
-    fontSize: 14,
-  },
+  emptyState: { padding: '60px 20px', textAlign: 'center', color: colors.textTertiary, fontSize: 14 },
 }
