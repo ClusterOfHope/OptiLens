@@ -1,3 +1,8 @@
+/* ─────────────────────────────────────────────────
+   OptiLens — Global styles + responsive design
+   Breakpoints: 1024 (tablet), 768 (mobile), 480 (small)
+   ───────────────────────────────────────────────── */
+
 * {
   box-sizing: border-box;
   margin: 0;
@@ -6,6 +11,7 @@
 
 html {
   scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
@@ -14,6 +20,7 @@ body {
   font-family: 'Inter', -apple-system, system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
 }
 
 a {
@@ -28,6 +35,11 @@ button {
 
 input, textarea {
   font-family: inherit;
+}
+
+img {
+  max-width: 100%;
+  height: auto;
 }
 
 @keyframes pulse {
@@ -49,16 +61,328 @@ a:hover {
   color: #FBBF24;
 }
 
-@media (max-width: 900px) {
-  h1 { font-size: 48px !important; }
-  h2 { font-size: 36px !important; }
+/* ═════════════════════════════════════════════════
+   TABLET — max 1024px
+   ═════════════════════════════════════════════════ */
+@media (max-width: 1024px) {
+  /* Hero — collapse 2-column to single column, stack vertically */
   section[style*="grid-template-columns: 1fr 1fr"] {
     grid-template-columns: 1fr !important;
+    gap: 60px !important;
+    padding-top: 110px !important;
   }
-  div[style*="grid-template-columns: repeat(3"] {
+
+  /* Hero headline shrinks */
+  h1 {
+    font-size: clamp(40px, 7vw, 64px) !important;
+  }
+
+  /* Section titles shrink */
+  h2 {
+    font-size: clamp(32px, 5.5vw, 48px) !important;
+  }
+
+  /* Reduce section padding */
+  section[style*="padding: 120px 32px"],
+  section[style*="padding: 140px 32px"] {
+    padding-left: 24px !important;
+    padding-right: 24px !important;
+    padding-top: 80px !important;
+    padding-bottom: 80px !important;
+  }
+
+  /* Three-column grids → two columns */
+  div[style*="grid-template-columns: repeat(3, 1fr)"] {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 16px !important;
+  }
+}
+
+/* ═════════════════════════════════════════════════
+   MOBILE — max 768px
+   ═════════════════════════════════════════════════ */
+@media (max-width: 768px) {
+  /* Nav — collapse, hide some links */
+  nav > div {
+    padding: 0 20px !important;
+  }
+
+  /* Hide nav middle links on mobile, keep CTA only */
+  nav a[href^="#"] {
+    display: none !important;
+  }
+
+  /* Sign in link visible but smaller */
+  nav a[style*="cursor: pointer"] {
+    display: inline-block !important;
+    font-size: 13px !important;
+  }
+
+  /* Smaller nav CTA */
+  nav button {
+    padding: 8px 14px !important;
+    font-size: 12px !important;
+  }
+
+  /* Hero — tighter spacing */
+  section[style*="grid-template-columns: 1fr 1fr"],
+  section[style*="grid-template-columns: 1fr 1fr"] > section {
+    padding-left: 20px !important;
+    padding-right: 20px !important;
+    padding-top: 100px !important;
+    padding-bottom: 60px !important;
+    gap: 40px !important;
+  }
+
+  /* Headlines */
+  h1 {
+    font-size: clamp(36px, 9vw, 56px) !important;
+    line-height: 1.05 !important;
+  }
+
+  h2 {
+    font-size: clamp(28px, 7vw, 40px) !important;
+    margin-bottom: 40px !important;
+  }
+
+  /* Hero subtitle */
+  p {
+    font-size: 16px !important;
+  }
+
+  /* Hero actions stack vertically */
+  div[style*="display: flex"][style*="gap: 16px"][style*="margin-bottom: 32px"] {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 12px !important;
+  }
+
+  /* Primary buttons full width on mobile */
+  button[style*="padding: 16px 28px"] {
+    width: 100% !important;
+    padding: 14px 20px !important;
+  }
+
+  /* Trust items wrap */
+  div[style*="font-size: 13"][style*="display: flex"][style*="gap: 12px"] {
+    flex-wrap: wrap !important;
+    justify-content: flex-start !important;
+  }
+
+  /* Three & two column grids → single column */
+  div[style*="grid-template-columns: repeat(3, 1fr)"],
+  div[style*="grid-template-columns: repeat(2, 1fr)"] {
+    grid-template-columns: 1fr !important;
+    gap: 14px !important;
+  }
+
+  /* 4-column metric grid in dashboard mock → 2 columns */
+  div[style*="grid-template-columns: 1fr 1fr"] {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 8px !important;
+  }
+
+  /* Dashboard mock — reduce padding */
+  div[style*="padding: 20"] {
+    padding: 14px !important;
+  }
+
+  /* Section padding */
+  section[style*="padding: 120px 32px"],
+  section[style*="padding: 140px 32px"] {
+    padding-left: 20px !important;
+    padding-right: 20px !important;
+    padding-top: 60px !important;
+    padding-bottom: 60px !important;
+  }
+
+  /* Pricing card */
+  div[style*="padding: 48"][style*="max-width: 560"] {
+    padding: 28px !important;
+  }
+
+  /* Pricing tier price */
+  span[style*="font-size: 64"] {
+    font-size: 48px !important;
+  }
+
+  /* Step cards stack with less padding */
+  div[style*="padding: 36px 32px"] {
+    padding: 28px 24px !important;
+  }
+
+  /* Problem cards with less padding */
+  div[style*="padding: 32px 28px"] {
+    padding: 24px 22px !important;
+  }
+
+  /* Find cards */
+  div[style*="padding: 24px 22px"] {
+    padding: 20px 18px !important;
+  }
+
+  /* Footer stacks */
+  footer > div {
+    flex-direction: column !important;
+    gap: 16px !important;
+    text-align: center !important;
+  }
+
+  footer > div > div {
+    flex-direction: column !important;
+    gap: 8px !important;
+  }
+
+  /* ───── DASHBOARD MOBILE ─────── */
+  /* Collapse sidebar — show as top header instead */
+  div[style*="grid-template-columns: 240px 1fr"] {
     grid-template-columns: 1fr !important;
   }
-  div[style*="grid-template-columns: repeat(4"] {
-    grid-template-columns: repeat(2, 1fr) !important;
+
+  /* Hide sidebar by default — could be made into a hamburger menu later */
+  aside[style*="border-right"] {
+    display: none !important;
   }
+
+  /* Dashboard main padding */
+  main[style*="padding: 32px 40px 80px"] {
+    padding: 20px 16px 60px !important;
+  }
+
+  /* Dashboard topbar */
+  main > div:first-child {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 16px !important;
+    margin-bottom: 24px !important;
+  }
+
+  /* Dashboard top actions row */
+  main > div:first-child > div:last-child {
+    width: 100% !important;
+    justify-content: space-between !important;
+  }
+
+  /* Dashboard alert banner stacks */
+  div[style*="border-left: 3px solid"][style*="padding: 20px 24px"] {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 12px !important;
+    padding: 16px 18px !important;
+  }
+
+  div[style*="border-left: 3px solid"] > div:last-child {
+    text-align: left !important;
+  }
+
+  /* Metric cards 4-col → 2-col */
+  div[style*="grid-template-columns: repeat(4, 1fr)"] {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 10px !important;
+  }
+
+  /* Metric value smaller */
+  div[style*="font-size: 32"] {
+    font-size: 24px !important;
+  }
+
+  /* Campaign rows scroll horizontally on mobile, OR stack */
+  div[style*="display: flex"][style*="padding: 16px 20px"][style*="border-bottom"] {
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+  }
+
+  /* Filter tabs smaller */
+  button[style*="padding: 6px 14px"] {
+    padding: 6px 10px !important;
+    font-size: 11px !important;
+  }
+
+  /* Table header — hide on mobile, stack rows */
+  div[style*="background"][style*="font-size: 10"][style*="letter-spacing: 0.1em"] {
+    display: none !important;
+  }
+
+  /* Campaign rows become card-like on mobile */
+  div[style*="display: flex"][style*="padding: 16px 20px"][style*="border-bottom"] > div {
+    width: auto !important;
+    text-align: left !important;
+  }
+
+  /* ───── ONBOARDING MOBILE ─────── */
+  div[style*="max-width: 640"] {
+    max-width: 100% !important;
+    padding: 60px 20px 80px !important;
+  }
+
+  /* Onboarding title */
+  h1[style*="font-size: 44"] {
+    font-size: clamp(32px, 8vw, 40px) !important;
+  }
+
+  /* Onboarding actions */
+  div[style*="margin-top: 48px"][style*="justify-content: space-between"] {
+    flex-direction: column-reverse !important;
+    align-items: stretch !important;
+    gap: 12px !important;
+  }
+
+  div[style*="margin-top: 48px"] button {
+    width: 100% !important;
+    margin-left: 0 !important;
+  }
+}
+
+/* ═════════════════════════════════════════════════
+   SMALL MOBILE — max 480px
+   ═════════════════════════════════════════════════ */
+@media (max-width: 480px) {
+  /* Even tighter for small phones */
+  h1 {
+    font-size: clamp(32px, 9vw, 44px) !important;
+  }
+
+  h2 {
+    font-size: clamp(26px, 7.5vw, 34px) !important;
+  }
+
+  /* Hero eyebrow smaller */
+  div[style*="border-radius: 100"][style*="font-size: 12"] {
+    font-size: 11px !important;
+    padding: 5px 12px !important;
+  }
+
+  /* Tighter section padding */
+  section[style*="padding"] {
+    padding-left: 16px !important;
+    padding-right: 16px !important;
+  }
+
+  /* Pricing card even tighter */
+  div[style*="padding: 48"][style*="max-width: 560"] {
+    padding: 24px 20px !important;
+  }
+
+  span[style*="font-size: 64"] {
+    font-size: 40px !important;
+  }
+
+  /* Dashboard mock metric cards stack 1-col on tiny screens */
+  div[style*="grid-template-columns: 1fr 1fr"][style*="gap: 8"] {
+    gap: 6px !important;
+  }
+
+  /* Pricing header stack */
+  div[style*="display: flex"][style*="justify-content: space-between"][style*="align-items: flex-start"][style*="margin-bottom: 32px"] {
+    flex-direction: column !important;
+    gap: 16px !important;
+  }
+}
+
+/* ═════════════════════════════════════════════════
+   PRINT — clean print version
+   ═════════════════════════════════════════════════ */
+@media print {
+  body { background: white !important; color: black !important; }
+  nav, footer, button { display: none !important; }
 }
