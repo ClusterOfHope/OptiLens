@@ -36,22 +36,27 @@ async function getCampaignInsights(campaignId: string, accessToken: string) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json().catch(() => ({}))
+    const userId = req.cookies.get('optilens_uid')?.value
 
     let adAccountId = body.ad_account_id
     let accessToken = body.access_token
     let metaAccountId: string | undefined
 
-    // If no token in body, fetch the most recently connected account from Supabase
+    // If no token in body, look up from user's saved Meta account
     if (!accessToken) {
-      const { data: savedAccount, error: fetchError } = await supabaseAdmin
+      let query = supabaseAdmin
         .from('meta_accounts')
         .select('id, ad_account_id, access_token')
         .order('updated_at', { ascending: false })
         .limit(1)
-        .single()
+
+      if (userId) {
+        query = query.eq('user_id', userId)
+      }
+
+      const { data: savedAccount, error: fetchError } = await query.single()
 
       if (fetchError || !savedAccount) {
-        // Final fallback to env variable (legacy support)
         adAccountId = adAccountId || process.env.META_AD_ACCOUNT_ID
         accessToken = process.env.META_ACCESS_TOKEN
       } else {
@@ -68,7 +73,6 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // Get the meta_account record id if we don't have it yet
     if (!metaAccountId) {
       const { data: metaAccount } = await supabaseAdmin
         .from('meta_accounts')
@@ -162,7 +166,7 @@ export async function POST(req: NextRequest) {
       success: true,
       campaigns_synced: synced,
       flags_detected: flagsDetected,
-      message: `Synced ${synced} campaigns, detected ${flagsDetected} waste flags`,
+      message: `Synced ${synced} campaigns · ${flagsDetected} flags detected`,
     })
   } catch (error: any) {
     console.error('Ingest error:', error.response?.data || error.message)

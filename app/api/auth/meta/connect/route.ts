@@ -6,6 +6,8 @@ export async function GET(req: NextRequest) {
 
   // Permissions we need from the user
   const scopes = [
+    'public_profile',
+    'email',
     'ads_read',
     'ads_management',
     'business_management',

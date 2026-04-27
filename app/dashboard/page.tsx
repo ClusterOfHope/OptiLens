@@ -1,372 +1,772 @@
 'use client'
-import { useEffect, useState, Suspense } from 'react'
-import { useSearchParams } from 'next/navigation'
 
-type Flag = { flag_type: string; severity: string; description: string; recommendation: string }
+import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+
+type User = {
+  id: string
+  name: string
+  email: string | null
+  avatar_url: string | null
+  company_name: string | null
+  subscription_status: string
+}
+
 type Campaign = {
-  id: string; name: string; status: string; objective: string
-  total_spend: number; total_revenue: number; roas: number
-  waste_score: number; flags: Flag[]; recommendation: string
+  id: string
+  name: string
+  objective: string
+  status: string
+  spend: number
+  revenue: number
+  roas: number
+  waste_score: number
+  health: 'healthy' | 'warning' | 'critical'
+  recommendation: string
 }
 
-const DEMO: Campaign[] = [
-  { id:'1', name:'Spring Sale 2026', status:'ACTIVE', objective:'CONVERSIONS', total_spend:4200, total_revenue:13400, roas:3.19, waste_score:0, flags:[], recommendation:'SCALE' },
-  { id:'2', name:'Black Friday Retargeting', status:'ACTIVE', objective:'CONVERSIONS', total_spend:6200, total_revenue:0, roas:0, waste_score:10, flags:[{flag_type:'ZERO_CONVERSIONS',severity:'CRITICAL',description:'$6,200 spent with zero revenue',recommendation:'PAUSE'}], recommendation:'PAUSE' },
-  { id:'3', name:'Brand Awareness Broad', status:'ACTIVE', objective:'AWARENESS', total_spend:3100, total_revenue:2800, roas:0.90, waste_score:7, flags:[{flag_type:'HIGH_SPEND_LOW_ROAS',severity:'HIGH',description:'0.90x ROAS below break-even',recommendation:'PAUSE'}], recommendation:'PAUSE' },
-  { id:'4', name:'Retargeting — 30 Day', status:'ACTIVE', objective:'CONVERSIONS', total_spend:1800, total_revenue:5200, roas:2.88, waste_score:2, flags:[{flag_type:'CREATIVE_FATIGUE',severity:'MEDIUM',description:'High frequency, CTR dropping',recommendation:'REFRESH_CREATIVE'}], recommendation:'REFRESH_CREATIVE' },
-  { id:'5', name:'Lookalike — Top Customers', status:'ACTIVE', objective:'CONVERSIONS', total_spend:2900, total_revenue:6100, roas:2.10, waste_score:1, flags:[], recommendation:'MONITOR' },
-  { id:'6', name:'TikTok UGC — Cold', status:'PAUSED', objective:'CONVERSIONS', total_spend:980, total_revenue:420, roas:0.43, waste_score:8, flags:[{flag_type:'NEGATIVE_TREND',severity:'HIGH',description:'ROAS dropped 68% in 7 days',recommendation:'REDUCE_BUDGET'}], recommendation:'REDUCE_BUDGET' },
-]
-
-const RECO_LABEL: Record<string,string> = {
-  PAUSE:'Pause now', SCALE:'Scale up', REFRESH_CREATIVE:'Refresh creative',
-  MONITOR:'Monitor', REDUCE_BUDGET:'Reduce budget'
-}
-const RECO_STYLE: Record<string,{bg:string,color:string}> = {
-  PAUSE:           { bg:'#ef4444', color:'#000' },
-  SCALE:           { bg:'#34d399', color:'#000' },
-  REFRESH_CREATIVE:{ bg:'#fbbf24', color:'#000' },
-  MONITOR:         { bg:'#333',    color:'#888' },
-  REDUCE_BUDGET:   { bg:'#f97316', color:'#000' },
-}
-const NAV = ['Dashboard','Campaigns','History','Meta Ads','Shopify']
-
-function Dashboard() {
-  const searchParams = useSearchParams()
+export default function Dashboard() {
+  const router = useRouter()
+  const [user, setUser] = useState<User | null>(null)
   const [campaigns, setCampaigns] = useState<Campaign[]>([])
-  const [loading, setLoading] = useState(true)
+  const [filter, setFilter] = useState<'all' | 'flagged' | 'healthy'>('all')
   const [syncing, setSyncing] = useState(false)
-  const [syncMsg, setSyncMsg] = useState('')
-  const [filter, setFilter] = useState<'all'|'flagged'|'healthy'>('all')
-  const [isConnected, setIsConnected] = useState(false)
-  const [showBanner, setShowBanner] = useState<'success'|'error'|null>(null)
-  const [errorMsg, setErrorMsg] = useState('')
+  const [syncMessage, setSyncMessage] = useState('')
+  const [showMenu, setShowMenu] = useState(false)
+  const [trendData, setTrendData] = useState<number[]>([])
 
   useEffect(() => {
-    const connected = searchParams.get('connected')
-    const error = searchParams.get('error')
-
-    if (connected === 'true') {
-      setIsConnected(true)
-      setShowBanner('success')
-      fetchRealData()
-      setTimeout(() => setShowBanner(null), 5000)
-    } else if (error) {
-      const messages: Record<string,string> = {
-        meta_denied: 'You denied Meta access. Please try again.',
-        no_ad_accounts: 'No ad accounts found on this Facebook account.',
-        oauth_failed: 'Connection failed. Check your Meta app settings.',
-        no_code: 'OAuth code missing. Please try again.',
-      }
-      setErrorMsg(messages[error] || 'Connection failed.')
-      setShowBanner('error')
-      setTimeout(() => setShowBanner(null), 6000)
-      loadDemo()
-    } else {
-      loadDemo()
-    }
-  }, [])
-
-  const loadDemo = () => {
-    setTimeout(() => { setCampaigns(DEMO); setLoading(false) }, 600)
-  }
-
-  const fetchRealData = async () => {
-    setLoading(true)
-    try {
-      const res = await fetch('/api/dashboard')
-      const data = await res.json()
-      if (data.campaigns?.length > 0) {
-        setCampaigns(data.campaigns)
-        setIsConnected(true)
-      } else {
-        setCampaigns(DEMO)
-      }
-    } catch {
-      setCampaigns(DEMO)
-    } finally {
-      setLoading(false)
-    }
-  }
+    fetch('/api/me')
+      .then((r) => r.json())
+      .then((d) => {
+        if (!d?.user) {
+          router.push('/')
+          return
+        }
+        setUser(d.user)
+        if (d.campaigns) setCampaigns(d.campaigns)
+        if (d.trend) setTrendData(d.trend)
+      })
+      .catch(() => router.push('/'))
+  }, [router])
 
   const handleSync = async () => {
-    if (!isConnected) {
-      window.location.href = '/api/auth/meta/connect'
-      return
-    }
     setSyncing(true)
-    setSyncMsg('')
+    setSyncMessage('')
     try {
-      const res = await fetch('/api/ingest', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({}) })
+      const res = await fetch('/api/ingest', { method: 'POST' })
       const data = await res.json()
       if (data.success) {
-        setSyncMsg(`Synced ${data.campaigns_synced} campaigns · ${data.flags_detected} flags detected`)
-        await fetchRealData()
+        setSyncMessage(data.message || 'Sync complete')
+        // Reload data
+        const me = await fetch('/api/me').then((r) => r.json())
+        if (me.campaigns) setCampaigns(me.campaigns)
+        if (me.trend) setTrendData(me.trend)
       } else {
-        setSyncMsg(data.error || 'Sync failed')
+        setSyncMessage(data.error || 'Sync failed')
       }
     } catch {
-      setSyncMsg('Sync failed — check console')
-    } finally {
-      setSyncing(false)
-      setTimeout(() => setSyncMsg(''), 5000)
+      setSyncMessage('Network error during sync')
     }
+    setSyncing(false)
+    setTimeout(() => setSyncMessage(''), 4000)
   }
 
-  const totalSpend = campaigns.reduce((s,c) => s+c.total_spend, 0)
-  const totalRev   = campaigns.reduce((s,c) => s+c.total_revenue, 0)
-  const roas       = totalSpend > 0 ? totalRev/totalSpend : 0
-  const wasted     = campaigns.filter(c => c.recommendation==='PAUSE').reduce((s,c) => s+c.total_spend, 0)
-  const wastedPct  = totalSpend > 0 ? Math.round(wasted/totalSpend*100) : 0
-  const flagCount  = campaigns.filter(c => c.flags.length > 0).length
+  const handleLogout = async () => {
+    await fetch('/api/auth/logout', { method: 'POST' })
+    router.push('/')
+  }
 
-  const filtered = campaigns.filter(c => {
-    if (filter==='flagged') return c.flags.length > 0
-    if (filter==='healthy') return c.flags.length === 0
+  const totalSpend = campaigns.reduce((s, c) => s + (c.spend || 0), 0)
+  const totalRevenue = campaigns.reduce((s, c) => s + (c.revenue || 0), 0)
+  const blendedRoas = totalSpend > 0 ? totalRevenue / totalSpend : 0
+  const wasteSpend = campaigns
+    .filter((c) => c.health === 'critical' || c.health === 'warning')
+    .reduce((s, c) => s + (c.spend || 0), 0)
+  const wastePercent = totalSpend > 0 ? Math.round((wasteSpend / totalSpend) * 100) : 0
+  const flaggedCount = campaigns.filter((c) => c.health !== 'healthy').length
+
+  const filteredCampaigns = campaigns.filter((c) => {
+    if (filter === 'flagged') return c.health !== 'healthy'
+    if (filter === 'healthy') return c.health === 'healthy'
     return true
   })
 
-  const borderColor = (c: Campaign) =>
-    c.waste_score >= 7 ? '#ef4444' : c.waste_score >= 3 ? '#fbbf24' : '#34d399'
-  const roasColor = (r: number) =>
-    r >= 2 ? '#34d399' : r >= 1 ? '#fbbf24' : '#ef4444'
+  if (!user) {
+    return (
+      <div style={styles.loadingPage}>
+        <div style={styles.loadingText}>Loading your dashboard...</div>
+      </div>
+    )
+  }
 
   return (
-    <div style={{ display:'grid', gridTemplateColumns:'220px 1fr', minHeight:'100vh', background:'#111', fontFamily:"system-ui,sans-serif" }}>
+    <div style={styles.page}>
+      <div style={styles.grain} />
 
       {/* SIDEBAR */}
-      <div style={{ background:'#0a0a0a', borderRight:'1px solid #1f1f1f', display:'flex', flexDirection:'column' }}>
-        <div style={{ padding:'24px 20px 20px', borderBottom:'1px solid #1f1f1f' }}>
-          <div style={{ fontSize:'20px', fontWeight:900, letterSpacing:'-0.5px', color:'#fff' }}>
-            Opti<span style={{ color:'#fbbf24' }}>Lens</span>
+      <aside style={styles.sidebar}>
+        <div style={styles.sidebarTop}>
+          <div style={styles.logo}>
+            <span style={styles.logoOpti}>Opti</span>
+            <span style={styles.logoLens}>Lens</span>
           </div>
-          <div style={{ fontSize:'11px', color:'#444', marginTop:'3px' }}>Ad spend intelligence</div>
+          <div style={styles.tagline}>Ad spend intelligence</div>
         </div>
 
-        <div style={{ padding:'16px 12px', flex:1 }}>
-          <div style={{ fontSize:'9px', color:'#333', fontWeight:700, textTransform:'uppercase', letterSpacing:'0.1em', padding:'0 8px', marginBottom:'8px' }}>Menu</div>
-          {NAV.map((n,i) => (
-            <div key={n} style={{
-              display:'flex', alignItems:'center', gap:'10px',
-              padding:'9px 10px', borderRadius:'7px', marginBottom:'2px',
-              background: i===0 ? '#1a1a1a' : 'transparent',
-              color: i===0 ? '#fbbf24' : '#555',
-              fontSize:'13px', fontWeight: i===0 ? 700 : 400, cursor:'pointer',
-            }}>{n}</div>
-          ))}
+        <div style={styles.menu}>
+          <div style={styles.menuLabel}>MENU</div>
+          <a style={{ ...styles.menuItem, ...styles.menuItemActive }}>Dashboard</a>
+          <a style={styles.menuItem}>Campaigns</a>
+          <a style={styles.menuItem}>History</a>
+          <a style={styles.menuItem}>Meta Ads</a>
+          <a style={styles.menuItem}>Shopify</a>
         </div>
 
-        <div style={{ padding:'16px', borderTop:'1px solid #1f1f1f' }}>
-          {isConnected ? (
-            <div style={{ background:'#052e1c', border:'1px solid #064e3b', borderRadius:'8px', padding:'10px 12px' }}>
-              <div style={{ fontSize:'10px', color:'#34d399', fontWeight:700, marginBottom:'2px' }}>● Meta Ads connected</div>
-              <div style={{ fontSize:'9px', color:'#1a4030' }}>Live data active</div>
-            </div>
-          ) : (
-            <>
-              <div style={{ fontSize:'10px', color:'#333', marginBottom:'8px', textAlign:'center' }}>Meta Ads not connected</div>
-              <button
-                onClick={() => window.location.href = '/api/auth/meta/connect'}
-                style={{ width:'100%', background:'#fbbf24', color:'#000', border:'none', padding:'10px', borderRadius:'8px', fontSize:'12px', fontWeight:900, cursor:'pointer' }}
-              >
-                + Connect Meta Ads
-              </button>
-            </>
-          )}
+        <div style={styles.sidebarBottom}>
+          <div style={styles.betaBadge}>
+            <span style={styles.betaDot} />
+            BETA · Free for life
+          </div>
         </div>
-      </div>
+      </aside>
 
       {/* MAIN */}
-      <div style={{ padding:'28px 32px', overflowY:'auto' }}>
-
-        {showBanner === 'success' && (
-          <div style={{ background:'#052e1c', border:'1px solid #064e3b', borderRadius:'10px', padding:'14px 20px', marginBottom:'20px', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-            <div>
-              <div style={{ fontSize:'13px', fontWeight:700, color:'#34d399' }}>✓ Meta Ads connected successfully</div>
-              <div style={{ fontSize:'11px', color:'#1a4030', marginTop:'2px' }}>Your campaigns are being synced now</div>
-            </div>
-            <button onClick={() => setShowBanner(null)} style={{ background:'none', border:'none', color:'#1a4030', cursor:'pointer', fontSize:'16px' }}>×</button>
-          </div>
-        )}
-        {showBanner === 'error' && (
-          <div style={{ background:'#450a0a', border:'1px solid #7f1d1d', borderRadius:'10px', padding:'14px 20px', marginBottom:'20px', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-            <div>
-              <div style={{ fontSize:'13px', fontWeight:700, color:'#f87171' }}>Connection failed</div>
-              <div style={{ fontSize:'11px', color:'#7f1d1d', marginTop:'2px' }}>{errorMsg}</div>
-            </div>
-            <button onClick={() => setShowBanner(null)} style={{ background:'none', border:'none', color:'#7f1d1d', cursor:'pointer', fontSize:'16px' }}>×</button>
-          </div>
-        )}
-
-        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:'28px' }}>
+      <main style={styles.main}>
+        {/* TOP BAR */}
+        <div style={styles.topbar}>
           <div>
-            <h1 style={{ fontSize:'24px', fontWeight:900, color:'#fff', letterSpacing:'-0.5px', margin:0 }}>Dashboard</h1>
-            <p style={{ fontSize:'12px', color:'#444', marginTop:'3px' }}>
-              {isConnected ? 'Live data · synced from Meta Ads' : 'Demo mode — connect Meta Ads to see real data'}
-            </p>
+            <h1 style={styles.title}>Dashboard</h1>
+            <div style={styles.subtitle}>Live · synced from Meta Ads</div>
           </div>
-          <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-end', gap:'6px' }}>
-            <div style={{ display:'flex', gap:'10px', alignItems:'center' }}>
-              {!isConnected && (
-                <span style={{ background:'#1a1a1a', border:'1px solid #2a2a2a', color:'#555', fontSize:'11px', padding:'6px 12px', borderRadius:'20px' }}>
-                  Demo mode
-                </span>
+          <div style={styles.topActions}>
+            {syncMessage && <div style={styles.syncMessage}>{syncMessage}</div>}
+            <button onClick={handleSync} disabled={syncing} style={styles.syncBtn}>
+              {syncing ? 'Syncing...' : 'Sync now'}
+            </button>
+            <div style={{ position: 'relative' }}>
+              <button onClick={() => setShowMenu(!showMenu)} style={styles.avatarBtn}>
+                {user.avatar_url ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={user.avatar_url} alt={user.name} style={styles.avatar} />
+                ) : (
+                  <div style={styles.avatarFallback}>{user.name?.[0] || '?'}</div>
+                )}
+              </button>
+              {showMenu && (
+                <div style={styles.dropdown}>
+                  <div style={styles.dropdownHeader}>
+                    <div style={styles.dropdownName}>{user.name}</div>
+                    <div style={styles.dropdownEmail}>{user.email}</div>
+                  </div>
+                  <button onClick={handleLogout} style={styles.dropdownItem}>
+                    Sign out
+                  </button>
+                </div>
               )}
-              <button
-                onClick={handleSync}
-                disabled={syncing}
-                style={{ background:'#fbbf24', color:'#000', border:'none', padding:'8px 16px', borderRadius:'8px', fontSize:'12px', fontWeight:800, cursor:'pointer', opacity: syncing ? 0.7 : 1 }}
-              >
-                {syncing ? 'Syncing...' : isConnected ? 'Sync now' : 'Connect Meta Ads'}
-              </button>
             </div>
-            {syncMsg && (
-              <div style={{ fontSize:'11px', color: syncMsg.includes('failed') || syncMsg.includes('error') ? '#ef4444' : '#34d399' }}>
-                {syncMsg}
-              </div>
-            )}
           </div>
         </div>
 
-        {wasted > 0 && (
-          <div style={{ background:'#fbbf24', borderRadius:'12px', padding:'20px 24px', marginBottom:'20px', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+        {/* ALERT BANNER */}
+        {flaggedCount > 0 && (
+          <div style={styles.alertBanner}>
             <div>
-              <div style={{ fontSize:'10px', fontWeight:800, color:'#78350f', textTransform:'uppercase', letterSpacing:'0.1em', marginBottom:'4px' }}>
-                {isConnected ? 'Action required — real data' : 'Action required — demo data'}
+              <div style={styles.alertLabel}>ACTION REQUIRED</div>
+              <div style={styles.alertTitle}>
+                {flaggedCount} campaigns burning money with poor returns
               </div>
-              <div style={{ fontSize:'16px', fontWeight:900, color:'#000', letterSpacing:'-0.3px' }}>
-                {flagCount} campaign{flagCount !== 1 ? 's' : ''} burning money with zero return
-              </div>
-              <div style={{ fontSize:'12px', color:'#92400e', marginTop:'3px' }}>
-                Pause these immediately to stop the bleed
-              </div>
+              <div style={styles.alertSub}>Pause these immediately to stop the bleed</div>
             </div>
-            <div style={{ textAlign:'right' }}>
-              <div style={{ fontSize:'36px', fontWeight:900, color:'#000', letterSpacing:'-2px', lineHeight:1 }}>
-                ${wasted.toLocaleString()}
+            <div style={styles.alertNumber}>
+              <div style={styles.alertAmount}>
+                ${Math.round(wasteSpend).toLocaleString()}
               </div>
-              <div style={{ fontSize:'11px', color:'#78350f', marginTop:'4px' }}>wasted this month</div>
+              <div style={styles.alertNumberSub}>wasted this month</div>
             </div>
           </div>
         )}
 
-        <div style={{ display:'grid', gridTemplateColumns:'repeat(4,minmax(0,1fr))', gap:'12px', marginBottom:'24px' }}>
-          {[
-            { label:'Total spend',     value:`$${totalSpend.toLocaleString()}`, color:'#fff',     sub:'Last 30 days' },
-            { label:'Revenue',         value:`$${totalRev.toLocaleString()}`,   color:'#34d399',  sub:'Meta attributed' },
-            { label:'Blended ROAS',    value:`${roas.toFixed(2)}x`,             color: roasColor(roas), sub:'Target: 2.0x+' },
-            { label:'Budget wasted',   value:`${wastedPct}%`,                   color:'#ef4444',  sub:`$${wasted.toLocaleString()} lost` },
-          ].map(m => (
-            <div key={m.label} style={{ background:'#0a0a0a', border:'1px solid #1f1f1f', borderRadius:'10px', padding:'16px' }}>
-              <div style={{ fontSize:'10px', color:'#444', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:'8px', fontWeight:600 }}>{m.label}</div>
-              <div style={{ fontSize:'22px', fontWeight:900, color:m.color, letterSpacing:'-0.5px' }}>{m.value}</div>
-              <div style={{ fontSize:'10px', color:'#333', marginTop:'4px' }}>{m.sub}</div>
+        {/* METRIC CARDS */}
+        <div style={styles.metricsRow}>
+          <Metric label="TOTAL SPEND" value={`$${Math.round(totalSpend).toLocaleString()}`} sub="Last 30 days" />
+          <Metric label="REVENUE" value={`$${Math.round(totalRevenue).toLocaleString()}`} sub="Meta attributed" tone="green" />
+          <Metric label="BLENDED ROAS" value={`${blendedRoas.toFixed(2)}x`} sub="Target: 2.0x+" tone={blendedRoas >= 2 ? 'green' : 'amber'} />
+          <Metric label="BUDGET WASTED" value={`${wastePercent}%`} sub={`$${Math.round(wasteSpend).toLocaleString()} lost`} tone={wastePercent > 30 ? 'red' : 'amber'} />
+        </div>
+
+        {/* CHART */}
+        <div style={styles.chartCard}>
+          <div style={styles.chartHeader}>
+            <div>
+              <div style={styles.chartTitle}>30-day waste trend</div>
+              <div style={styles.chartSub}>Daily spend on flagged campaigns · ↓ Goal: keep this flat</div>
             </div>
-          ))}
+            <div style={styles.chartLegend}>
+              <span style={styles.legendDot} />
+              Wasted spend
+            </div>
+          </div>
+          <TrendChart data={trendData.length ? trendData : DEMO_TREND} />
         </div>
 
-        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'12px' }}>
-          <div style={{ fontSize:'14px', fontWeight:800, color:'#fff', letterSpacing:'-0.3px' }}>
-            Campaign performance
-            <span style={{ fontSize:'11px', color:'#444', fontWeight:400, marginLeft:'8px' }}>{filtered.length} campaigns</span>
-          </div>
-          <div style={{ display:'flex', gap:'6px' }}>
-            {(['all','flagged','healthy'] as const).map(f => (
-              <button key={f} onClick={() => setFilter(f)} style={{
-                fontSize:'11px', padding:'5px 12px', borderRadius:'6px', cursor:'pointer',
-                border: filter===f ? 'none' : '1px solid #2a2a2a',
-                background: filter===f ? '#fbbf24' : '#0a0a0a',
-                color: filter===f ? '#000' : '#555',
-                fontWeight: filter===f ? 800 : 400,
-              }}>
-                {f.charAt(0).toUpperCase()+f.slice(1)}
-              </button>
-            ))}
+        {/* CAMPAIGNS */}
+        <div style={styles.campaignsHeader}>
+          <h2 style={styles.campaignsTitle}>
+            Campaign performance <span style={styles.campaignsCount}>{campaigns.length} campaigns</span>
+          </h2>
+          <div style={styles.filterTabs}>
+            <button onClick={() => setFilter('all')} style={{ ...styles.filterTab, ...(filter === 'all' ? styles.filterTabActive : {}) }}>All</button>
+            <button onClick={() => setFilter('flagged')} style={{ ...styles.filterTab, ...(filter === 'flagged' ? styles.filterTabActive : {}) }}>Flagged</button>
+            <button onClick={() => setFilter('healthy')} style={{ ...styles.filterTab, ...(filter === 'healthy' ? styles.filterTabActive : {}) }}>Healthy</button>
           </div>
         </div>
 
-        <div style={{ display:'grid', gridTemplateColumns:'1fr 90px 90px 70px 80px 90px 120px', gap:'8px', padding:'0 16px', marginBottom:'6px' }}>
-          {['Campaign','Spend','Revenue','ROAS','Waste','Health','Action'].map((h,i) => (
-            <div key={h} style={{ fontSize:'9px', color:'#333', fontWeight:700, textTransform:'uppercase', letterSpacing:'0.08em', textAlign: i===0 ? 'left' : 'right' }}>{h}</div>
-          ))}
-        </div>
+        <div style={styles.campaignTable}>
+          <div style={styles.tableHeader}>
+            <div style={{ flex: 2 }}>CAMPAIGN</div>
+            <div style={{ width: 90, textAlign: 'right' }}>SPEND</div>
+            <div style={{ width: 90, textAlign: 'right' }}>REVENUE</div>
+            <div style={{ width: 70, textAlign: 'right' }}>ROAS</div>
+            <div style={{ width: 90, textAlign: 'center' }}>WASTE</div>
+            <div style={{ width: 110, textAlign: 'center' }}>HEALTH</div>
+            <div style={{ width: 110, textAlign: 'right' }}>ACTION</div>
+          </div>
 
-        {loading ? (
-          <div style={{ textAlign:'center', padding:'60px', color:'#444', fontSize:'13px' }}>
-            {isConnected ? 'Pulling your real campaigns from Meta...' : 'Loading demo data...'}
-          </div>
-        ) : (
-          <div style={{ display:'flex', flexDirection:'column', gap:'6px' }}>
-            {filtered.map(c => (
-              <div key={c.id} style={{
-                background:'#0a0a0a', border:'1px solid #1f1f1f',
-                borderLeft:`3px solid ${borderColor(c)}`,
-                borderRadius:'10px', padding:'14px 16px',
-                display:'grid', gridTemplateColumns:'1fr 90px 90px 70px 80px 90px 120px',
-                alignItems:'center', gap:'8px',
-              }}>
-                <div>
-                  <div style={{ fontSize:'13px', fontWeight:700, color:'#fff' }}>{c.name}</div>
-                  <div style={{ fontSize:'10px', color:'#444', marginTop:'2px' }}>
-                    {c.objective} · <span style={{ color: c.status==='ACTIVE' ? '#34d399' : '#555' }}>{c.status}</span>
-                  </div>
-                </div>
-                <div style={{ textAlign:'right', fontSize:'13px', fontWeight:700, color:'#fff' }}>${c.total_spend.toLocaleString()}</div>
-                <div style={{ textAlign:'right', fontSize:'13px', fontWeight:700, color: c.total_revenue > 0 ? '#fff' : '#ef4444' }}>
-                  {c.total_revenue > 0 ? `$${c.total_revenue.toLocaleString()}` : '$0'}
-                </div>
-                <div style={{ textAlign:'right', fontSize:'13px', fontWeight:900, color: roasColor(c.roas) }}>{c.roas.toFixed(2)}x</div>
-                <div style={{ textAlign:'right' }}>
-                  <div style={{ fontSize:'12px', fontWeight:800, color: c.waste_score>=7 ? '#ef4444' : c.waste_score>=3 ? '#fbbf24' : '#34d399' }}>
-                    {c.waste_score}/10
-                  </div>
-                  <div style={{ height:'3px', background:'#1f1f1f', borderRadius:'2px', marginTop:'4px', width:'60px', marginLeft:'auto' }}>
-                    <div style={{ height:'100%', borderRadius:'2px', width:`${c.waste_score*10}%`, background: c.waste_score>=7 ? '#ef4444' : c.waste_score>=3 ? '#fbbf24' : '#34d399' }}/>
-                  </div>
-                </div>
-                <div style={{ textAlign:'right' }}>
-                  {c.flags.length > 0 ? (
-                    <span style={{ fontSize:'9px', background:'#450a0a', color:'#f87171', padding:'3px 6px', borderRadius:'4px', fontWeight:700 }}>
-                      {c.flags[0].flag_type.replace(/_/g,' ')}
-                    </span>
-                  ) : (
-                    <span style={{ fontSize:'10px', color:'#333' }}>—</span>
-                  )}
-                </div>
-                <div style={{ textAlign:'right' }}>
-                  <span style={{
-                    fontSize:'11px', fontWeight:800, padding:'5px 10px', borderRadius:'6px',
-                    background: RECO_STYLE[c.recommendation]?.bg || '#333',
-                    color: RECO_STYLE[c.recommendation]?.color || '#888',
-                    whiteSpace:'nowrap',
-                  }}>
-                    {RECO_LABEL[c.recommendation] || c.recommendation}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-
-        <div style={{ marginTop:'32px', paddingTop:'20px', borderTop:'1px solid #1f1f1f', display:'flex', justifyContent:'space-between' }}>
-          <div style={{ fontSize:'11px', color:'#333' }}>OptiLens · Optimize every ad dollar</div>
-          <div style={{ fontSize:'11px', color:'#333' }}>
-            {isConnected ? '● Live data' : '● Demo mode — connect Meta Ads to see real campaigns'}
-          </div>
+          {filteredCampaigns.length === 0 ? (
+            <div style={styles.emptyState}>
+              No campaigns match this filter.
+            </div>
+          ) : (
+            filteredCampaigns.map((c) => <CampaignRow key={c.id} campaign={c} />)
+          )}
         </div>
+      </main>
+    </div>
+  )
+}
+
+/* ─── Sub-components ─────────────────────────────── */
+
+function Metric({ label, value, sub, tone }: { label: string; value: string; sub: string; tone?: string }) {
+  const valueColor =
+    tone === 'green' ? '#34D399' :
+    tone === 'amber' ? '#FBBF24' :
+    tone === 'red' ? '#F87171' : '#fff'
+  return (
+    <div style={styles.metricCard}>
+      <div style={styles.metricLabel}>{label}</div>
+      <div style={{ ...styles.metricValue, color: valueColor }}>{value}</div>
+      <div style={styles.metricSub}>{sub}</div>
+    </div>
+  )
+}
+
+function CampaignRow({ campaign: c }: { campaign: Campaign }) {
+  const barColor =
+    c.health === 'critical' ? '#F87171' :
+    c.health === 'warning' ? '#FBBF24' : '#34D399'
+
+  const actionStyle =
+    c.health === 'critical' ? { background: 'rgba(248,113,113,0.15)', color: '#F87171' } :
+    c.health === 'warning' ? { background: 'rgba(251,191,36,0.15)', color: '#FBBF24' } :
+    { background: 'rgba(52,211,153,0.15)', color: '#34D399' }
+
+  const action = c.health === 'critical' ? 'Pause now' : c.health === 'warning' ? 'Pause now' : 'Scale up'
+
+  const roasColor = c.roas >= 2 ? '#34D399' : c.roas >= 1 ? '#FBBF24' : '#F87171'
+
+  return (
+    <div style={{ ...styles.campaignRow, borderLeft: `2px solid ${barColor}` }}>
+      <div style={{ flex: 2, minWidth: 0 }}>
+        <div style={styles.cName}>{c.name}</div>
+        <div style={styles.cMeta}>
+          <span>{c.objective}</span>
+          <span style={styles.cMetaDivider}>·</span>
+          <span style={{ color: '#34D399' }}>{c.status}</span>
+        </div>
+      </div>
+      <div style={{ width: 90, textAlign: 'right', fontWeight: 500 }}>${Math.round(c.spend).toLocaleString()}</div>
+      <div style={{ width: 90, textAlign: 'right', fontWeight: 500, color: c.revenue === 0 ? '#F87171' : '#fff' }}>${Math.round(c.revenue).toLocaleString()}</div>
+      <div style={{ width: 70, textAlign: 'right', fontWeight: 500, color: roasColor }}>{c.roas.toFixed(2)}x</div>
+      <div style={{ width: 90, textAlign: 'center' }}>
+        <div style={{ display: 'inline-block', width: 60, height: 4, borderRadius: 2, background: '#2E2E34', overflow: 'hidden' }}>
+          <div style={{ width: `${c.waste_score * 10}%`, height: '100%', background: barColor }} />
+        </div>
+        <div style={{ fontSize: 10, color: '#6B6B78', marginTop: 4 }}>{c.waste_score}/10</div>
+      </div>
+      <div style={{ width: 110, textAlign: 'center' }}>
+        <span style={{ ...styles.healthTag, color: barColor }}>{c.recommendation || '—'}</span>
+      </div>
+      <div style={{ width: 110, textAlign: 'right' }}>
+        <span style={{ ...styles.actionTag, ...actionStyle }}>{action}</span>
       </div>
     </div>
   )
 }
 
-export default function DashboardPage() {
+function TrendChart({ data }: { data: number[] }) {
+  const max = Math.max(...data, 1)
+  const points = data.map((v, i) => {
+    const x = (i / (data.length - 1)) * 100
+    const y = 100 - (v / max) * 80
+    return `${x},${y}`
+  }).join(' ')
+
+  const fillPoints = `0,100 ${points} 100,100`
+
   return (
-    <Suspense fallback={
-      <div style={{ background:'#111', minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center', color:'#444', fontFamily:'system-ui' }}>
-        Loading...
+    <div style={styles.chartContainer}>
+      <svg viewBox="0 0 100 100" preserveAspectRatio="none" style={{ width: '100%', height: 180, display: 'block' }}>
+        <polyline points={fillPoints} fill="rgba(248,113,113,0.08)" stroke="none" />
+        <polyline points={points} fill="none" stroke="#F87171" strokeWidth="0.5" vectorEffect="non-scaling-stroke" />
+      </svg>
+      <div style={styles.chartXAxis}>
+        <span>30 days ago</span>
+        <span>15 days</span>
+        <span>Today</span>
       </div>
-    }>
-      <Dashboard />
-    </Suspense>
+    </div>
   )
+}
+
+const DEMO_TREND = [120, 150, 180, 220, 260, 300, 340, 290, 250, 280, 310, 350, 410, 470, 520, 480, 440, 460, 510, 560, 600, 580, 540, 590, 640, 690, 720, 680, 640, 620]
+
+/* ─── Styles ─────────────────────────────────────── */
+
+const colors = {
+  bg: '#1F1F23',
+  bgSecondary: '#1A1A1E',
+  surface: '#28282E',
+  surfaceLight: '#2E2E34',
+  border: '#2E2E34',
+  text: '#FFFFFF',
+  textSecondary: '#9090A0',
+  textTertiary: '#6B6B78',
+  primary: '#FFFFFF',
+  green: '#34D399',
+  amber: '#FBBF24',
+  red: '#F87171',
+}
+
+const fonts = {
+  display: '"Fraunces", Georgia, serif',
+  body: '"Inter", -apple-system, system-ui, sans-serif',
+  mono: '"JetBrains Mono", Menlo, monospace',
+}
+
+const styles: Record<string, React.CSSProperties> = {
+  loadingPage: {
+    background: colors.bg,
+    color: colors.textSecondary,
+    minHeight: '100vh',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontFamily: fonts.body,
+  },
+  loadingText: { fontSize: 14, fontFamily: fonts.mono },
+
+  page: {
+    display: 'grid',
+    gridTemplateColumns: '240px 1fr',
+    background: colors.bg,
+    color: colors.text,
+    fontFamily: fonts.body,
+    minHeight: '100vh',
+    position: 'relative',
+  },
+  grain: {
+    position: 'fixed',
+    inset: 0,
+    pointerEvents: 'none',
+    opacity: 0.025,
+    background: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'200\' height=\'200\' viewBox=\'0 0 200 200\'%3E%3Cfilter id=\'n\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.9\' numOctaves=\'4\' /%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23n)\' /%3E%3C/svg%3E")',
+    zIndex: 1,
+  },
+
+  sidebar: {
+    background: colors.bgSecondary,
+    borderRight: `0.5px solid ${colors.border}`,
+    padding: '28px 20px',
+    display: 'flex',
+    flexDirection: 'column',
+    position: 'relative',
+    zIndex: 2,
+  },
+  sidebarTop: { marginBottom: 40 },
+  logo: {
+    fontFamily: fonts.display,
+    fontSize: 24,
+    fontWeight: 600,
+    letterSpacing: '-0.02em',
+    marginBottom: 4,
+  },
+  logoOpti: { color: colors.text },
+  logoLens: { color: colors.amber },
+  tagline: {
+    fontSize: 11,
+    color: colors.textTertiary,
+    letterSpacing: '0.02em',
+  },
+  menu: { flex: 1 },
+  menuLabel: {
+    fontSize: 10,
+    fontWeight: 600,
+    color: colors.textTertiary,
+    letterSpacing: '0.15em',
+    marginBottom: 12,
+    paddingLeft: 12,
+  },
+  menuItem: {
+    display: 'block',
+    padding: '10px 12px',
+    color: colors.textSecondary,
+    fontSize: 14,
+    fontWeight: 500,
+    borderRadius: 6,
+    cursor: 'pointer',
+    marginBottom: 2,
+  },
+  menuItemActive: {
+    background: colors.surface,
+    color: colors.amber,
+  },
+  sidebarBottom: { marginTop: 'auto' },
+  betaBadge: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 8,
+    padding: '8px 12px',
+    background: 'rgba(251,191,36,0.08)',
+    border: `0.5px solid rgba(251,191,36,0.2)`,
+    borderRadius: 100,
+    fontSize: 11,
+    fontWeight: 600,
+    color: colors.amber,
+    letterSpacing: '0.02em',
+  },
+  betaDot: {
+    width: 6,
+    height: 6,
+    background: colors.amber,
+    borderRadius: '50%',
+    boxShadow: `0 0 8px ${colors.amber}`,
+  },
+
+  main: {
+    padding: '32px 40px 80px',
+    position: 'relative',
+    zIndex: 2,
+    overflow: 'auto',
+  },
+  topbar: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 32,
+  },
+  title: {
+    fontFamily: fonts.display,
+    fontSize: 36,
+    fontWeight: 500,
+    letterSpacing: '-0.02em',
+    color: colors.text,
+  },
+  subtitle: {
+    fontSize: 12,
+    color: colors.textTertiary,
+    marginTop: 4,
+  },
+  topActions: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 14,
+  },
+  syncMessage: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    fontFamily: fonts.mono,
+  },
+  syncBtn: {
+    background: colors.primary,
+    color: '#1F1F23',
+    border: 'none',
+    padding: '10px 18px',
+    borderRadius: 8,
+    fontSize: 13,
+    fontWeight: 600,
+    cursor: 'pointer',
+    fontFamily: fonts.body,
+  },
+  avatarBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: '50%',
+    border: `0.5px solid ${colors.border}`,
+    padding: 0,
+    overflow: 'hidden',
+    cursor: 'pointer',
+    background: colors.surface,
+  },
+  avatar: { width: '100%', height: '100%', objectFit: 'cover' },
+  avatarFallback: {
+    width: '100%',
+    height: '100%',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    background: colors.surface,
+    color: colors.text,
+    fontSize: 14,
+    fontWeight: 600,
+  },
+  dropdown: {
+    position: 'absolute',
+    top: 48,
+    right: 0,
+    background: colors.surface,
+    border: `0.5px solid ${colors.border}`,
+    borderRadius: 10,
+    minWidth: 220,
+    boxShadow: '0 10px 30px rgba(0,0,0,0.4)',
+    zIndex: 50,
+  },
+  dropdownHeader: {
+    padding: '14px 16px',
+    borderBottom: `0.5px solid ${colors.border}`,
+  },
+  dropdownName: { fontSize: 14, fontWeight: 600 },
+  dropdownEmail: { fontSize: 12, color: colors.textTertiary, marginTop: 2 },
+  dropdownItem: {
+    width: '100%',
+    padding: '12px 16px',
+    background: 'transparent',
+    border: 'none',
+    color: colors.text,
+    fontSize: 13,
+    textAlign: 'left',
+    cursor: 'pointer',
+    fontFamily: fonts.body,
+  },
+
+  alertBanner: {
+    background: colors.surface,
+    border: `0.5px solid ${colors.border}`,
+    borderLeft: `3px solid ${colors.amber}`,
+    borderRadius: 10,
+    padding: '20px 24px',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  alertLabel: {
+    fontSize: 10,
+    fontWeight: 700,
+    letterSpacing: '0.15em',
+    color: colors.amber,
+    marginBottom: 6,
+  },
+  alertTitle: {
+    fontSize: 18,
+    fontWeight: 600,
+    color: colors.text,
+    marginBottom: 4,
+  },
+  alertSub: {
+    fontSize: 13,
+    color: colors.textSecondary,
+  },
+  alertNumber: { textAlign: 'right' },
+  alertAmount: {
+    fontFamily: fonts.display,
+    fontSize: 36,
+    fontWeight: 600,
+    color: colors.amber,
+    lineHeight: 1,
+  },
+  alertNumberSub: {
+    fontSize: 11,
+    color: colors.textTertiary,
+    marginTop: 4,
+  },
+
+  metricsRow: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(4, 1fr)',
+    gap: 12,
+    marginBottom: 24,
+  },
+  metricCard: {
+    background: colors.surface,
+    border: `0.5px solid ${colors.border}`,
+    borderRadius: 10,
+    padding: '18px 20px',
+  },
+  metricLabel: {
+    fontSize: 10,
+    color: colors.textTertiary,
+    letterSpacing: '0.1em',
+    marginBottom: 8,
+    fontWeight: 600,
+  },
+  metricValue: {
+    fontFamily: fonts.display,
+    fontSize: 32,
+    fontWeight: 500,
+    lineHeight: 1,
+    marginBottom: 6,
+    letterSpacing: '-0.02em',
+  },
+  metricSub: {
+    fontSize: 11,
+    color: colors.textTertiary,
+  },
+
+  chartCard: {
+    background: colors.surface,
+    border: `0.5px solid ${colors.border}`,
+    borderRadius: 10,
+    padding: '20px 24px',
+    marginBottom: 32,
+  },
+  chartHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 18,
+  },
+  chartTitle: {
+    fontSize: 14,
+    fontWeight: 600,
+    color: colors.text,
+    marginBottom: 4,
+  },
+  chartSub: {
+    fontSize: 11,
+    color: colors.textTertiary,
+  },
+  chartLegend: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 6,
+    fontSize: 11,
+    color: colors.textSecondary,
+  },
+  legendDot: {
+    width: 8,
+    height: 8,
+    background: colors.red,
+    borderRadius: '50%',
+  },
+  chartContainer: { position: 'relative' },
+  chartXAxis: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    fontSize: 10,
+    color: colors.textTertiary,
+    marginTop: 8,
+    fontFamily: fonts.mono,
+  },
+
+  campaignsHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  campaignsTitle: {
+    fontSize: 18,
+    fontWeight: 600,
+  },
+  campaignsCount: {
+    fontWeight: 400,
+    color: colors.textTertiary,
+    fontSize: 14,
+    marginLeft: 8,
+  },
+  filterTabs: {
+    display: 'flex',
+    gap: 4,
+    background: colors.surface,
+    border: `0.5px solid ${colors.border}`,
+    borderRadius: 8,
+    padding: 3,
+  },
+  filterTab: {
+    background: 'transparent',
+    border: 'none',
+    padding: '6px 14px',
+    fontSize: 12,
+    fontWeight: 500,
+    color: colors.textSecondary,
+    borderRadius: 5,
+    cursor: 'pointer',
+    fontFamily: fonts.body,
+  },
+  filterTabActive: {
+    background: colors.amber,
+    color: '#1F1F23',
+  },
+
+  campaignTable: {
+    background: colors.surface,
+    border: `0.5px solid ${colors.border}`,
+    borderRadius: 10,
+    overflow: 'hidden',
+  },
+  tableHeader: {
+    display: 'flex',
+    alignItems: 'center',
+    padding: '14px 20px',
+    fontSize: 10,
+    fontWeight: 700,
+    letterSpacing: '0.1em',
+    color: colors.textTertiary,
+    borderBottom: `0.5px solid ${colors.border}`,
+    gap: 16,
+  },
+  campaignRow: {
+    display: 'flex',
+    alignItems: 'center',
+    padding: '16px 20px',
+    borderBottom: `0.5px solid ${colors.border}`,
+    gap: 16,
+    fontSize: 13,
+  },
+  cName: {
+    fontSize: 14,
+    fontWeight: 500,
+    color: colors.text,
+    marginBottom: 4,
+  },
+  cMeta: {
+    fontSize: 11,
+    color: colors.textTertiary,
+    display: 'flex',
+    gap: 6,
+    alignItems: 'center',
+  },
+  cMetaDivider: { color: colors.border },
+  healthTag: {
+    fontSize: 10,
+    fontWeight: 600,
+    letterSpacing: '0.05em',
+  },
+  actionTag: {
+    display: 'inline-block',
+    fontSize: 10,
+    fontWeight: 700,
+    padding: '5px 10px',
+    borderRadius: 4,
+    letterSpacing: '0.05em',
+    textTransform: 'uppercase',
+  },
+  emptyState: {
+    padding: '60px 20px',
+    textAlign: 'center',
+    color: colors.textTertiary,
+    fontSize: 14,
+  },
 }
