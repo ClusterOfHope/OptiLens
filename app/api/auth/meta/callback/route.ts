@@ -52,7 +52,7 @@ export async function GET(req: NextRequest) {
     const profileRes = await axios.get('https://graph.facebook.com/v19.0/me', {
       params: {
         access_token: longLivedToken,
-        fields: 'id,name,email,picture.type(large)',
+        fields: 'id,name',
       },
     })
     const profile = profileRes.data
