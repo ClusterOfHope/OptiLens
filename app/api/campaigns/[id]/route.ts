@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
 
-export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const userId = req.cookies.get('optilens_uid')?.value
   if (!userId) {
     return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
   }
 
-  const campaignId = params.id
+  const { id: campaignId } = await params
 
   // Get campaign + verify it belongs to user
   const { data: campaign } = await supabaseAdmin
