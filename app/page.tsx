@@ -747,8 +747,8 @@ const findings = [
 
 const C = {
   bg: '#0A0B0E', bgSecondary: '#101218',
-  surface: '#0F2044', surfaceLight: '#162850',
-  border: '#1E3566', borderLight: '#1F242D',
+  surface: '#263238', surfaceLight: '#2F3E46',
+  border: '#37474F', borderLight: '#1F242D',
   text: '#FFFFFF', textSecondary: '#A0A8B5', textTertiary: '#6B7280',
   primary: '#FFFFFF', green: '#34D399', amber: '#FBBF24', red: '#F87171',
   purple: '#A78BFA',

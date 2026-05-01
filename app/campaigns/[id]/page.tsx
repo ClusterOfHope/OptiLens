@@ -220,8 +220,8 @@ function DualLineChart({ metrics }: { metrics: any[] }) {
 }
 
 const C = {
-  bg: '#0A0B0E', surface: '#0F2044', surfaceLight: '#162850',
-  border: '#1E3566', text: '#FFFFFF',
+  bg: '#0A0B0E', surface: '#263238', surfaceLight: '#2F3E46',
+  border: '#37474F', text: '#FFFFFF',
   textSecondary: '#A0A8B5', textTertiary: '#6B7280',
 }
 const F = { display: '"Fraunces", Georgia, serif', body: '"Inter", -apple-system, system-ui, sans-serif', mono: '"JetBrains Mono", Menlo, monospace' }
