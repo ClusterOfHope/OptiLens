@@ -213,9 +213,9 @@ function OptionGrid({ options, selected, onSelect, cols = 2 }: { options: string
 
 const C = {
   bg: '#0A0B0E',
-  surface: '#2D2D2D',
-  surfaceLight: '#383838',
-  border: '#444444',
+  surface: '#0F2044',
+  surfaceLight: '#162850',
+  border: '#1E3566',
   text: '#FFFFFF',
   textSecondary: '#A0A8B5',
   textTertiary: '#6B7280',
