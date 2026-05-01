@@ -136,8 +136,8 @@ export default function MetaAdsPage() {
 }
 
 const C = {
-  bg: '#0A0B0E', surface: '#334155', surfaceLight: '#3D4F6B',
-  border: '#475569', text: '#FFFFFF',
+  bg: '#0A0B0E', surface: '#2D2D2D', surfaceLight: '#383838',
+  border: '#444444', text: '#FFFFFF',
   textSecondary: '#A0A8B5', textTertiary: '#6B7280',
   primary: '#FFFFFF', amber: '#FBBF24', red: '#F87171', green: '#34D399',
 }
