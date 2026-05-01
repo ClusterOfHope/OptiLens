@@ -27,6 +27,7 @@ export default function Dashboard() {
   const [syncing, setSyncing] = useState(false)
   const [syncMessage, setSyncMessage] = useState('')
   const [trendData, setTrendData] = useState<number[]>([])
+  const [hasLoaded, setHasLoaded] = useState(false)
 
   useEffect(() => {
     fetch('/api/me')
@@ -34,8 +35,9 @@ export default function Dashboard() {
       .then((d) => {
         if (d.campaigns) setCampaigns(d.campaigns)
         if (d.trend) setTrendData(d.trend)
+        setHasLoaded(true)
       })
-      .catch(() => {})
+      .catch(() => setHasLoaded(true))
   }, [])
 
   const handleSync = async () => {
@@ -63,6 +65,10 @@ export default function Dashboard() {
   const wasteSpend = campaigns.filter((c) => c.health === 'critical' || c.health === 'warning').reduce((s, c) => s + (c.spend || 0), 0)
   const wastePercent = totalSpend > 0 ? Math.round((wasteSpend / totalSpend) * 100) : 0
   const flaggedCount = campaigns.filter((c) => c.health !== 'healthy').length
+
+  // Detect whether we have ANY meaningful data
+  const hasData = campaigns.length > 0 && totalSpend > 0
+  const hasTrendData = trendData.length > 0 && trendData.some((v) => v > 0)
 
   const filteredCampaigns = campaigns.filter((c) => {
     if (filter === 'flagged') return c.health !== 'healthy'
@@ -108,10 +114,10 @@ export default function Dashboard() {
         ...S.metricsRow,
         gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : isTablet ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)',
       }}>
-        <Metric label="TOTAL SPEND" value={`$${Math.round(totalSpend).toLocaleString()}`} sub="Last 30 days" mobile={isMobile} />
-        <Metric label="REVENUE" value={`$${Math.round(totalRevenue).toLocaleString()}`} sub="Meta attributed" tone="green" mobile={isMobile} />
-        <Metric label="BLENDED ROAS" value={`${blendedRoas.toFixed(2)}x`} sub="Target: 2.0x+" tone={blendedRoas >= 2 ? 'green' : 'amber'} mobile={isMobile} />
-        <Metric label="BUDGET WASTED" value={`${wastePercent}%`} sub={`$${Math.round(wasteSpend).toLocaleString()} lost`} tone={wastePercent > 30 ? 'red' : 'amber'} mobile={isMobile} />
+        <Metric label="TOTAL SPEND" value={hasData ? `$${Math.round(totalSpend).toLocaleString()}` : '—'} sub={hasData ? 'Last 30 days' : 'No data yet'} mobile={isMobile} />
+        <Metric label="REVENUE" value={hasData ? `$${Math.round(totalRevenue).toLocaleString()}` : '—'} sub={hasData ? 'Meta attributed' : 'No data yet'} tone={hasData ? 'green' : undefined} mobile={isMobile} />
+        <Metric label="BLENDED ROAS" value={hasData ? `${blendedRoas.toFixed(2)}x` : '—'} sub={hasData ? 'Target: 2.0x+' : 'No data yet'} tone={hasData ? (blendedRoas >= 2 ? 'green' : 'amber') : undefined} mobile={isMobile} />
+        <Metric label="BUDGET WASTED" value={hasData ? `${wastePercent}%` : '—'} sub={hasData ? `$${Math.round(wasteSpend).toLocaleString()} lost` : 'No data yet'} tone={hasData ? (wastePercent > 30 ? 'red' : 'amber') : undefined} mobile={isMobile} />
       </div>
 
       <div style={S.chartCard}>
@@ -120,12 +126,18 @@ export default function Dashboard() {
             <div style={S.chartTitle}>30-day waste trend</div>
             {!isMobile && <div style={S.chartSub}>Daily spend on flagged campaigns</div>}
           </div>
-          <div style={S.chartLegend}>
-            <span style={S.legendDot} />
-            {!isMobile && <span>Wasted spend</span>}
-          </div>
+          {hasTrendData && (
+            <div style={S.chartLegend}>
+              <span style={S.legendDot} />
+              {!isMobile && <span>Wasted spend</span>}
+            </div>
+          )}
         </div>
-        <TrendChart data={trendData.length ? trendData : DEMO_TREND} />
+        {hasTrendData ? (
+          <TrendChart data={trendData} />
+        ) : (
+          <EmptyChart />
+        )}
       </div>
 
       <div style={{
@@ -200,7 +212,7 @@ function CampaignRow({ campaign: c }: { campaign: Campaign }) {
       <div style={{ width: 90, textAlign: 'right', fontWeight: 500, color: c.revenue === 0 ? '#F87171' : '#fff' }}>${Math.round(c.revenue).toLocaleString()}</div>
       <div style={{ width: 70, textAlign: 'right', fontWeight: 500, color: roasColor }}>{c.roas.toFixed(2)}x</div>
       <div style={{ width: 90, textAlign: 'center' }}>
-        <div style={{ display: 'inline-block', width: 60, height: 4, borderRadius: 2, background: '#37474F', overflow: 'hidden' }}>
+        <div style={{ display: 'inline-block', width: 60, height: 4, borderRadius: 2, background: '#2D3340', overflow: 'hidden' }}>
           <div style={{ width: `${c.waste_score * 10}%`, height: '100%', background: barColor }} />
         </div>
         <div style={{ fontSize: 10, color: '#6B7280', marginTop: 4 }}>{c.waste_score}/10</div>
@@ -275,11 +287,34 @@ function TrendChart({ data }: { data: number[] }) {
   )
 }
 
-const DEMO_TREND = [120, 150, 180, 220, 260, 300, 340, 290, 250, 280, 310, 350, 410, 470, 520, 480, 440, 460, 510, 560, 600, 580, 540, 590, 640, 690, 720, 680, 640, 620]
+function EmptyChart() {
+  return (
+    <div style={S.chartContainer}>
+      <svg viewBox="0 0 100 100" preserveAspectRatio="none" style={{ width: '100%', height: 140, display: 'block' }}>
+        {/* Flat dotted baseline */}
+        <line
+          x1="0" y1="60" x2="100" y2="60"
+          stroke="#2D3340"
+          strokeWidth="0.5"
+          strokeDasharray="2,2"
+          vectorEffect="non-scaling-stroke"
+        />
+      </svg>
+      <div style={S.emptyChartOverlay}>
+        <div style={S.emptyChartText}>Chart will populate after your first sync</div>
+      </div>
+      <div style={S.chartXAxis}>
+        <span>30 days ago</span>
+        <span>15 days</span>
+        <span>Today</span>
+      </div>
+    </div>
+  )
+}
 
 const C = {
-  bg: '#0A0B0E', surface: '#263238', surfaceLight: '#2F3E46',
-  border: '#37474F', text: '#FFFFFF',
+  bg: '#0A0B0E', surface: '#1A1D24', surfaceLight: '#22262F',
+  border: '#2D3340', text: '#FFFFFF',
   textSecondary: '#A0A8B5', textTertiary: '#6B7280',
   amber: '#FBBF24', green: '#34D399', red: '#F87171',
 }
@@ -307,6 +342,22 @@ const S: Record<string, React.CSSProperties> = {
   legendDot: { width: 8, height: 8, background: C.red, borderRadius: '50%' },
   chartContainer: { position: 'relative' },
   chartXAxis: { display: 'flex', justifyContent: 'space-between', fontSize: 10, color: C.textTertiary, marginTop: 8, fontFamily: F.mono },
+  emptyChartOverlay: {
+    position: 'absolute',
+    top: 0, left: 0, right: 0, bottom: 0,
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    pointerEvents: 'none',
+  },
+  emptyChartText: {
+    fontSize: 12,
+    color: C.textTertiary,
+    fontFamily: F.mono,
+    letterSpacing: '0.02em',
+    background: 'rgba(26,29,36,0.7)',
+    padding: '6px 14px',
+    borderRadius: 6,
+    border: `1px solid ${C.border}`,
+  },
   campaignsHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
   campaignsTitle: { fontSize: 18, fontWeight: 600 },
   campaignsCount: { fontWeight: 400, color: C.textTertiary, fontSize: 14, marginLeft: 8 },
