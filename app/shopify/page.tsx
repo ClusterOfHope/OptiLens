@@ -241,8 +241,8 @@ function Benefit({ icon, title, body }: { icon: string; title: string; body: str
 }
 
 const C = {
-  bg: '#0A0B0E', surface: '#1A1D24', surfaceLight: '#22262F',
-  border: '#2D3340', text: '#FFFFFF',
+  bg: '#0A0B0E', surface: '#2C3E50', surfaceLight: '#34495E',
+  border: '#3D5166', text: '#FFFFFF',
   textSecondary: '#A0A8B5', textTertiary: '#6B7280',
   amber: '#FBBF24', green: '#34D399', red: '#F87171',
   primary: '#FFFFFF',

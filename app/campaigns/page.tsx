@@ -173,7 +173,7 @@ function CampaignRow({ campaign: c, onClick }: { campaign: Campaign; onClick: ()
       <div style={{ width: 100, textAlign: 'right', fontWeight: 500, color: c.revenue === 0 ? '#F87171' : '#fff' }}>${Math.round(c.revenue).toLocaleString()}</div>
       <div style={{ width: 80, textAlign: 'right', fontWeight: 500, color: roasColor }}>{c.roas.toFixed(2)}x</div>
       <div style={{ width: 100, textAlign: 'center' }}>
-        <div style={{ display: 'inline-block', width: 60, height: 4, borderRadius: 2, background: '#2D3340', overflow: 'hidden' }}>
+        <div style={{ display: 'inline-block', width: 60, height: 4, borderRadius: 2, background: '#3D5166', overflow: 'hidden' }}>
           <div style={{ width: `${c.waste_score * 10}%`, height: '100%', background: barColor }} />
         </div>
         <div style={{ fontSize: 10, color: '#6B7280', marginTop: 4 }}>{c.waste_score}/10</div>
@@ -225,8 +225,8 @@ function CampaignCardMobile({ campaign: c, onClick }: { campaign: Campaign; onCl
 }
 
 const C = {
-  bg: '#0A0B0E', surface: '#1A1D24', surfaceLight: '#22262F',
-  border: '#2D3340', text: '#FFFFFF',
+  bg: '#0A0B0E', surface: '#2C3E50', surfaceLight: '#34495E',
+  border: '#3D5166', text: '#FFFFFF',
   textSecondary: '#A0A8B5', textTertiary: '#6B7280',
   amber: '#FBBF24', green: '#34D399', red: '#F87171',
 }
