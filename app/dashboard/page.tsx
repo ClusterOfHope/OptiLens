@@ -200,7 +200,7 @@ function CampaignRow({ campaign: c }: { campaign: Campaign }) {
       <div style={{ width: 90, textAlign: 'right', fontWeight: 500, color: c.revenue === 0 ? '#F87171' : '#fff' }}>${Math.round(c.revenue).toLocaleString()}</div>
       <div style={{ width: 70, textAlign: 'right', fontWeight: 500, color: roasColor }}>{c.roas.toFixed(2)}x</div>
       <div style={{ width: 90, textAlign: 'center' }}>
-        <div style={{ display: 'inline-block', width: 60, height: 4, borderRadius: 2, background: '#3D5166', overflow: 'hidden' }}>
+        <div style={{ display: 'inline-block', width: 60, height: 4, borderRadius: 2, background: '#475569', overflow: 'hidden' }}>
           <div style={{ width: `${c.waste_score * 10}%`, height: '100%', background: barColor }} />
         </div>
         <div style={{ fontSize: 10, color: '#6B7280', marginTop: 4 }}>{c.waste_score}/10</div>
@@ -278,8 +278,8 @@ function TrendChart({ data }: { data: number[] }) {
 const DEMO_TREND = [120, 150, 180, 220, 260, 300, 340, 290, 250, 280, 310, 350, 410, 470, 520, 480, 440, 460, 510, 560, 600, 580, 540, 590, 640, 690, 720, 680, 640, 620]
 
 const C = {
-  bg: '#0A0B0E', surface: '#2C3E50', surfaceLight: '#34495E',
-  border: '#3D5166', text: '#FFFFFF',
+  bg: '#0A0B0E', surface: '#334155', surfaceLight: '#3D4F6B',
+  border: '#475569', text: '#FFFFFF',
   textSecondary: '#A0A8B5', textTertiary: '#6B7280',
   amber: '#FBBF24', green: '#34D399', red: '#F87171',
 }

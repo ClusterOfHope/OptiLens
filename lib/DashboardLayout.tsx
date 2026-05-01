@@ -163,8 +163,8 @@ export function DashboardLayout({ children, pageTitle, pageSubtitle, rightAction
 
 const C = {
   bg: '#0A0B0E', bgSecondary: '#101218',
-  surface: '#2C3E50', surfaceLight: '#34495E',
-  border: '#3D5166',
+  surface: '#334155', surfaceLight: '#3D4F6B',
+  border: '#475569',
   text: '#FFFFFF', textSecondary: '#A0A8B5', textTertiary: '#6B7280',
   primary: '#FFFFFF', amber: '#FBBF24',
 }
