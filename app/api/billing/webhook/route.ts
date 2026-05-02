@@ -110,7 +110,6 @@ export async function POST(req: NextRequest) {
 async function updateUserSubscription(sub: Stripe.Subscription, userIdHint: string | null) {
   const customerId = typeof sub.customer === 'string' ? sub.customer : sub.customer.id
 
-  // Find user by customer ID (or use hint)
   let userId = userIdHint
   if (!userId) {
     const { data: user } = await supabaseAdmin
@@ -126,8 +125,15 @@ async function updateUserSubscription(sub: Stripe.Subscription, userIdHint: stri
     return
   }
 
+  // Get period end — moved between API versions
+  // Try subscription-level first, then fall back to first item's period
+  const periodEndUnix =
+    (sub as any).current_period_end ||
+    sub.items?.data?.[0]?.current_period_end ||
+    null
+
   const trialEnd = sub.trial_end ? new Date(sub.trial_end * 1000).toISOString() : null
-  const periodEnd = sub.current_period_end ? new Date(sub.current_period_end * 1000).toISOString() : null
+  const periodEnd = periodEndUnix ? new Date(periodEndUnix * 1000).toISOString() : null
 
   await supabaseAdmin
     .from('users')
