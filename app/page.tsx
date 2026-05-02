@@ -78,21 +78,7 @@ export default function LandingPage() {
       alert('Network error. Try again.')
     }
   }
-  try {
-    const res = await fetch('/api/billing/checkout', { method: 'POST' })
-    const data = await res.json()
-    if (data.url) {
-      window.location.href = data.url
-    } else if (data.redirect) {
-      window.location.href = data.redirect
-    } else {
-      alert(data.error || 'Failed to start checkout')
-    }
-  } catch {
-    alert('Network error. Try again.')
-  }
-}
-
+  
   return (
     <div style={S.page}>
       <style>{globalCss}</style>
