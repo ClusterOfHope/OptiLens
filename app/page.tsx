@@ -56,10 +56,27 @@ export default function LandingPage() {
   const handleConnect = () => { window.location.href = '/api/auth/meta/connect' }
   const handleOpenDashboard = () => { window.location.href = '/dashboard' }
   const handleSubscribe = async () => {
-  if (!hasSession) {
-    // Need to sign in first
-    handleConnect()
-    return
+    if (!hasSession) {
+      // Set a cookie so post-auth flow knows to redirect to checkout
+      document.cookie = 'optilens_post_auth_intent=checkout; path=/; max-age=600; SameSite=Lax'
+      // Now go through Meta login
+      handleConnect()
+      return
+    }
+    // Already signed in - go straight to Stripe checkout
+    try {
+      const res = await fetch('/api/billing/checkout', { method: 'POST' })
+      const data = await res.json()
+      if (data.url) {
+        window.location.href = data.url
+      } else if (data.redirect) {
+        window.location.href = data.redirect
+      } else {
+        alert(data.error || 'Failed to start checkout')
+      }
+    } catch {
+      alert('Network error. Try again.')
+    }
   }
   try {
     const res = await fetch('/api/billing/checkout', { method: 'POST' })

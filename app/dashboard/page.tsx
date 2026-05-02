@@ -29,6 +29,32 @@ export default function Dashboard() {
   const [trendData, setTrendData] = useState<number[]>([])
   const [hasLoaded, setHasLoaded] = useState(false)
 
+  // Handle post-auth redirect intents (e.g. user came from "Start trial" button)
+  useEffect(() => {
+    const match = document.cookie.match(/(?:^|; )optilens_post_auth_intent=([^;]+)/)
+    const intent = match ? match[1] : null
+
+    if (intent === 'checkout') {
+      // Clear the cookie immediately
+      document.cookie = 'optilens_post_auth_intent=; path=/; max-age=0; SameSite=Lax'
+
+      // Redirect to Stripe checkout
+      ;(async () => {
+        try {
+          const res = await fetch('/api/billing/checkout', { method: 'POST' })
+          const data = await res.json()
+          if (data.url) {
+            window.location.href = data.url
+          } else if (data.redirect) {
+            window.location.href = data.redirect
+          }
+        } catch {
+          // Network error - stay on dashboard silently
+        }
+      })()
+    }
+  }, [])
+  
   useEffect(() => {
     fetch('/api/me')
       .then((r) => r.json())
