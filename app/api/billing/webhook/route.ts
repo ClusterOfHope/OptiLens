@@ -69,13 +69,19 @@ export async function POST(req: NextRequest) {
       }
 
       case 'invoice.payment_failed': {
-        const invoice = event.data.object as Stripe.Invoice
-        if (invoice.subscription) {
-          const sub = await stripe.subscriptions.retrieve(invoice.subscription as string)
-          await updateUserSubscription(sub, null)
-        }
-        break
-      }
+  const invoice = event.data.object as Stripe.Invoice
+  // Get subscription ID — different fields in different Stripe API versions
+  const subscriptionId =
+    (invoice as any).subscription ||
+    (invoice.parent as any)?.subscription_details?.subscription ||
+    invoice.lines?.data?.[0]?.subscription
+
+  if (subscriptionId && typeof subscriptionId === 'string') {
+    const sub = await stripe.subscriptions.retrieve(subscriptionId)
+    await updateUserSubscription(sub, null)
+  }
+  break
+}
 
       case 'customer.subscription.trial_will_end': {
         // Stripe sends this 3 days before trial ends — could trigger an email
