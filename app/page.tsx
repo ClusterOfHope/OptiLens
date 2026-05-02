@@ -107,8 +107,8 @@ export default function LandingPage() {
             ) : (
               <>
                 <a onClick={handleConnect} style={{ ...S.navLink, cursor: 'pointer', fontSize: isMobile ? 13 : 14 }}>Sign in</a>
-                <button onClick={handleConnect} className="opti-cta-glow" style={{ ...S.navCta, ...(isMobile ? S.navCtaMobile : {}) }}>
-                  {isMobile ? 'Scan →' : 'Scan My Ads — Free'}
+                <button onClick={handleSubscribe} className="opti-cta-glow" style={{ ...S.navCta, ...(isMobile ? S.navCtaMobile : {}) }}>
+                  {isMobile ? 'Try Free →' : 'Start Free Trial'}
                 </button>
               </>
             )}
@@ -141,20 +141,25 @@ export default function LandingPage() {
             flexDirection: isMobile ? 'column' : 'row',
             alignItems: isMobile ? 'stretch' : 'center',
           }}>
-            <button onClick={hasSession ? handleOpenDashboard : handleConnect} className="opti-cta-glow" style={{
+            <button onClick={hasSession ? handleOpenDashboard : handleSubscribe} className="opti-cta-glow" style={{
               ...S.primaryBtn, width: isMobile ? '100%' : 'auto',
               padding: isMobile ? '14px 20px' : '16px 28px',
             }}>
-              {hasSession ? 'Open Dashboard →' : 'Scan My Ads Now — Free'}
+              {hasSession ? 'Open Dashboard →' : 'Start 7-Day Free Trial →'}
             </button>
             {!isMobile && <a href="#how" style={S.secondaryBtn}>See how it works →</a>}
           </div>
+          {!hasSession && (
+            <div style={S.ctaSubtext}>
+              7 days free, then <strong style={S.ctaSubtextStrong}>$29/mo</strong> · Cancel anytime
+            </div>
+          )}
           <div style={{ ...S.heroTrust, flexWrap: 'wrap' }}>
             <span style={S.trustItemTag}>✓ 60-second setup</span>
             <span style={S.trustDivider}>·</span>
             <span style={S.trustItemTag}>✓ Read-only access</span>
             <span style={S.trustDivider}>·</span>
-            <span style={S.trustItemTag}>✓ No credit card</span>
+            <span style={S.trustItemTag}>✓ No surprises</span>
           </div>
           <div style={S.heroStat}>
             <span style={S.heroStatHighlight}>Most brands waste 20–40%</span> of their ad budget.
@@ -206,7 +211,7 @@ export default function LandingPage() {
             How much are you<br />
             <span style={S.heroAccent}>losing every month?</span>
           </h2>
-          <WasteCalculator isMobile={isMobile} onScan={handleConnect} />
+          <WasteCalculator isMobile={isMobile} onScan={handleSubscribe} />
         </div>
       </section>
 
@@ -480,8 +485,8 @@ export default function LandingPage() {
               answer="Not yet. OptiLens currently focuses exclusively on Meta (Facebook + Instagram) ads. Google Ads support is planned for Q3 2026. TikTok and other platforms will follow based on user demand."
             />
             <FaqItem
-              question="What happens to my access after the beta ends?"
-              answer="Beta users keep free access for life. When public pricing launches at $99/mo, you'll continue using OptiLens free with all current features included. New features may be Pro-only, but the core waste detection stays free for you."
+              question="Why do you require a credit card for the trial?"
+              answer="The card is required to prevent abuse and ensure serious users. You won't be charged during the 7-day trial. Cancel anytime in those 7 days and you pay nothing. After day 7, your card is charged $29/mo."
             />
             <FaqItem
               question="How accurate is the waste detection?"
@@ -505,11 +510,16 @@ export default function LandingPage() {
           <p style={{ ...S.finalSub, fontSize: isMobile ? 16 : 18 }}>
             60 seconds to connect. The truth about your ROAS in 5 minutes.
           </p>
-          <button onClick={hasSession ? handleOpenDashboard : handleConnect} className="opti-cta-glow" style={{
+          <button onClick={hasSession ? handleOpenDashboard : handleSubscribe} className="opti-cta-glow" style={{
             ...S.primaryBtn, width: isMobile ? '100%' : 'auto',
           }}>
-            {hasSession ? 'Open Dashboard →' : 'Scan My Ads Now — Free'}
+            {hasSession ? 'Open Dashboard →' : 'Start 7-Day Free Trial →'}
           </button>
+          {!hasSession && (
+            <div style={{ ...S.ctaSubtext, marginTop: 16, textAlign: 'center' }}>
+              7 days free, then <strong style={S.ctaSubtextStrong}>$29/mo</strong> · Cancel anytime
+            </div>
+          )}
         </div>
       </section>
 
@@ -560,9 +570,12 @@ export default function LandingPage() {
       {/* STICKY MOBILE CTA */}
       {isMobile && pastHero && !hasSession && (
         <div style={S.stickyMobileCta}>
-          <button onClick={handleConnect} style={S.stickyMobileBtn}>
-            Scan My Ads — Free →
+          <button onClick={handleSubscribe} style={S.stickyMobileBtn}>
+            Start 7-Day Free Trial →
           </button>
+          <div style={S.stickyMobileSubtext}>
+            7 days free · $29/mo · Cancel anytime
+          </div>
         </div>
       )}
     </div>
@@ -720,8 +733,9 @@ function WasteCalculator({ isMobile, onScan }: { isMobile: boolean; onScan: () =
           <span style={{ ...S.calcResultValue, color: '#34D399' }}>${(animatedRecovered * 12).toLocaleString()}/yr</span>
         </div>
         <button onClick={onScan} className="opti-cta-glow" style={S.calcCta}>
-          Run My Free Audit →
+          Start 7-Day Free Trial →
         </button>
+        <div style={S.ctaSubtextSmall}>7 days free, then $29/mo · Cancel anytime</div>
       </div>
     </div>
   )
@@ -1064,7 +1078,7 @@ const S: Record<string, React.CSSProperties> = {
   heroTitle: { fontFamily: F.display, fontWeight: 400, lineHeight: 1.02, letterSpacing: '-0.04em', marginBottom: 28 },
   heroAccent: { color: C.amber, fontStyle: 'italic' },
   heroSub: { lineHeight: 1.55, color: C.textSecondary, marginBottom: 40, maxWidth: 540 },
-  heroActions: { display: 'flex', gap: 16, marginBottom: 28 },
+  heroActions: { display: 'flex', gap: 16, marginBottom: 18 },
   primaryBtn: { background: C.primary, color: '#0A0B0E', border: 'none', borderRadius: 10, fontSize: 15, fontWeight: 600, padding: '16px 28px', cursor: 'pointer', fontFamily: F.body, boxShadow: '0 8px 24px rgba(255,255,255,0.12)' },
   secondaryBtn: { color: C.text, padding: '16px 8px', fontSize: 15, fontWeight: 500 },
   heroTrust: { display: 'flex', gap: 12, fontSize: 13, color: C.textTertiary, marginBottom: 24 },
@@ -1072,6 +1086,10 @@ const S: Record<string, React.CSSProperties> = {
   trustDivider: { color: C.border },
   heroStat: { fontSize: 14, color: C.textSecondary, padding: '12px 16px', background: 'rgba(251,191,36,0.06)', border: `1px solid rgba(251,191,36,0.2)`, borderRadius: 8, lineHeight: 1.5 },
   heroStatHighlight: { color: C.amber, fontWeight: 600 },
+
+  ctaSubtext: { fontSize: 13, color: C.textTertiary, marginBottom: 18, lineHeight: 1.5 },
+  ctaSubtextStrong: { color: C.text, fontWeight: 600 },
+  ctaSubtextSmall: { fontSize: 11, color: C.textTertiary, textAlign: 'center', marginTop: 10, lineHeight: 1.5 },
 
   tooltipIcon: { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 16, height: 16, borderRadius: '50%', background: 'rgba(251,191,36,0.18)', color: C.amber, fontSize: 10, fontWeight: 700, marginLeft: 4, marginRight: 2, cursor: 'help', verticalAlign: 'middle' },
   tooltipBox: { position: 'absolute', bottom: 'calc(100% + 8px)', left: '50%', transform: 'translateX(-50%)', background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, padding: '10px 14px', fontSize: 12, color: C.text, lineHeight: 1.5, width: 280, zIndex: 200, boxShadow: '0 8px 24px rgba(0,0,0,0.5)' },
@@ -1259,4 +1277,5 @@ const S: Record<string, React.CSSProperties> = {
   /* STICKY MOBILE CTA */
   stickyMobileCta: { position: 'fixed', bottom: 0, left: 0, right: 0, padding: '12px 16px 16px', background: 'rgba(10,11,14,0.95)', backdropFilter: 'blur(20px)', borderTop: `1px solid ${C.border}`, zIndex: 99, boxShadow: '0 -8px 24px rgba(0,0,0,0.6)' },
   stickyMobileBtn: { width: '100%', background: C.primary, color: '#0A0B0E', border: 'none', padding: '14px', borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: F.body, boxShadow: '0 4px 12px rgba(255,255,255,0.1)' },
+  stickyMobileSubtext: { fontSize: 11, color: C.textTertiary, textAlign: 'center', marginTop: 8, lineHeight: 1.4 },
 }
