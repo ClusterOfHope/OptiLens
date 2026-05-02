@@ -18,7 +18,7 @@ export default function LandingPage() {
 
   const [scrolled, setScrolled] = useState(false)
   const [pastHero, setPastHero] = useState(false)
-  const [betaSpotsLeft] = useState(47)
+  const [betaSpotsLeft, setBetaSpotsLeft] = useState(47)
   const [hasSession, setHasSession] = useState(false)
   const [savings, setSavings] = useState({ identified: 0, saved: 0, brands: 0 })
   const [showCounter, setShowCounter] = useState(false)
@@ -31,6 +31,13 @@ export default function LandingPage() {
     window.addEventListener('scroll', onScroll)
 
     fetch('/api/me').then((r) => r.json()).then((d) => setHasSession(!!d?.user)).catch(() => {})
+
+    fetch('/api/beta-spots')
+  .then((r) => r.json())
+  .then((d) => {
+    if (typeof d.spots_left === 'number') setBetaSpotsLeft(d.spots_left)
+  })
+  .catch(() => {})
 
     if (SHOW_SAVINGS_COUNTER) {
       const fetchSavings = () => {
@@ -48,6 +55,26 @@ export default function LandingPage() {
 
   const handleConnect = () => { window.location.href = '/api/auth/meta/connect' }
   const handleOpenDashboard = () => { window.location.href = '/dashboard' }
+  const handleSubscribe = async () => {
+  if (!hasSession) {
+    // Need to sign in first
+    handleConnect()
+    return
+  }
+  try {
+    const res = await fetch('/api/billing/checkout', { method: 'POST' })
+    const data = await res.json()
+    if (data.url) {
+      window.location.href = data.url
+    } else if (data.redirect) {
+      window.location.href = data.redirect
+    } else {
+      alert(data.error || 'Failed to start checkout')
+    }
+  } catch {
+    alert('Network error. Try again.')
+  }
+}
 
   return (
     <div style={S.page}>
@@ -352,7 +379,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* PRICING — now with two cards (Beta + Pro Coming Soon) */}
+      {/* PRICING — Beta paid + Pro Coming Soon */}
       <section id="pricing" style={{ ...S.pricing, padding: isMobile ? '60px 20px' : '120px 32px' }}>
         <div style={S.sectionInner}>
           <div style={S.sectionEyebrow}>Pricing</div>
@@ -360,22 +387,24 @@ export default function LandingPage() {
             ...S.sectionTitle, fontSize: isMobile ? 32 : isTablet ? 44 : 56,
             marginBottom: isMobile ? 36 : 64, textAlign: 'center',
           }}>
-            Free during beta.<br />
-            <span style={S.heroAccent}>Forever, for the first 50.</span>
+            Save 70% as a beta user.<br />
+            <span style={S.heroAccent}>Locked in for life.</span>
           </h2>
           <div style={{
             ...S.pricingGrid, gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, 1fr)',
             gap: isMobile ? 16 : 24,
           }}>
-            {/* BETA card */}
+            {/* BETA card — now PAID */}
             <div style={{ ...S.pricingCard, padding: isMobile ? 24 : 36 }}>
               <div style={S.pricingHeader}>
                 <div>
                   <div style={S.pricingTier}>BETA ACCESS</div>
-                  <div style={S.pricingPrice}>
-                    <span style={{ ...S.priceAmount, fontSize: isMobile ? 44 : 56 }}>$0</span>
+                  <div style={S.pricingPriceWithStrike}>
+                    <span style={S.priceStrike}>$99</span>
+                    <span style={{ ...S.priceAmount, fontSize: isMobile ? 44 : 56 }}>$29</span>
                     <span style={S.pricePeriod}>/ month</span>
                   </div>
+                  <div style={S.priceSavings}>Save $70/mo · $840/year</div>
                 </div>
                 <div style={S.spotsTag}>{betaSpotsLeft} of 50 left</div>
               </div>
@@ -384,18 +413,21 @@ export default function LandingPage() {
                 <li style={S.pricingFeature}>✓ 12 waste-detection rules</li>
                 <li style={S.pricingFeature}>✓ Real-time alerts</li>
                 <li style={S.pricingFeature}>✓ Direct founder support</li>
-                <li style={S.pricingFeature}>✓ Free forever for beta users</li>
+                <li style={S.pricingFeature}>✓ Locked at $29/mo for life</li>
               </ul>
-              <button onClick={handleConnect} className="opti-cta-glow" style={S.pricingCta}>
-                Claim your spot →
+              <button onClick={handleSubscribe} className="opti-cta-glow" style={S.pricingCta}>
+                Start 7-day free trial →
               </button>
+              <div style={S.pricingTrialNote}>
+                7 days free, then $29/mo. Cancel anytime in your trial.
+              </div>
             </div>
 
             {/* PRO Coming Soon card */}
             <div style={{ ...S.pricingCardPro, padding: isMobile ? 24 : 36 }}>
               <div style={S.pricingHeader}>
                 <div>
-                  <div style={S.pricingTierPro}>PRO · COMING Q3 2026</div>
+                  <div style={S.pricingTierPro}>PRO · COMING SOON</div>
                   <div style={S.pricingPrice}>
                     <span style={{ ...S.priceAmountPro, fontSize: isMobile ? 44 : 56 }}>$99</span>
                     <span style={S.pricePeriodPro}>/ month</span>
@@ -409,13 +441,13 @@ export default function LandingPage() {
                 <li style={S.pricingFeaturePro}>✓ Google Ads integration</li>
                 <li style={S.pricingFeaturePro}>✓ Slack & email alerts</li>
               </ul>
-              <button onClick={handleConnect} style={S.pricingCtaGhost}>
-                Beta locks you in free →
+              <button onClick={handleSubscribe} style={S.pricingCtaGhost}>
+                Beta locks you in at $29 →
               </button>
             </div>
           </div>
           <div style={{ ...S.pricingFootnote, textAlign: 'center', marginTop: 24 }}>
-            Beta users keep free access permanently — even after Pro launches.
+            Beta users keep $29/mo permanently — even after Pro launches at $99.
           </div>
         </div>
       </section>
@@ -1187,6 +1219,10 @@ const S: Record<string, React.CSSProperties> = {
   pricingTier: { fontSize: 11, fontWeight: 700, letterSpacing: '0.15em', color: C.amber, marginBottom: 8 },
   pricingTierPro: { fontSize: 11, fontWeight: 700, letterSpacing: '0.15em', color: C.purple, marginBottom: 8 },
   pricingPrice: { display: 'flex', alignItems: 'baseline', gap: 8 },
+  pricingPriceWithStrike: { display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' },
+  priceStrike: { fontFamily: F.display, fontSize: 28, fontWeight: 400, color: C.textTertiary, textDecoration: 'line-through', textDecorationColor: 'rgba(248,113,113,0.6)', textDecorationThickness: '2px' },
+  priceSavings: { fontSize: 13, fontWeight: 600, color: C.green, marginTop: 8 },
+  pricingTrialNote: { fontSize: 12, color: C.textTertiary, textAlign: 'center', marginTop: 12, lineHeight: 1.5 },
   priceAmount: { fontFamily: F.display, fontWeight: 400, letterSpacing: '-0.04em', lineHeight: 1, color: C.text },
   priceAmountPro: { fontFamily: F.display, fontWeight: 400, letterSpacing: '-0.04em', lineHeight: 1, color: C.textSecondary },
   pricePeriod: { color: C.textTertiary, fontSize: 16 },
