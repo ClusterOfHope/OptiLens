@@ -38,12 +38,12 @@ export async function POST(req: NextRequest) {
   try {
     switch (event.type) {
       case 'checkout.session.completed': {
-        const session = event.data.object as Stripe.Checkout.Session
-        const userId = (session.metadata?.user_id) || (session.subscription_details?.metadata?.user_id)
+  const session = event.data.object as Stripe.Checkout.Session
 
-        if (session.subscription && session.customer) {
-          const sub = await stripe.subscriptions.retrieve(session.subscription as string)
-          await updateUserSubscription(sub, userId || null)
+  if (session.subscription && session.customer) {
+    const sub = await stripe.subscriptions.retrieve(session.subscription as string)
+    const userId = (session.metadata?.user_id as string | undefined) || (sub.metadata?.user_id as string | undefined) || null
+    await updateUserSubscription(sub, userId)
 
           // Claim a beta spot if applicable
           if (sub.metadata?.is_beta === 'true' && userId) {
